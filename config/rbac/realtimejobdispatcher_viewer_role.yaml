@@ -1,0 +1,27 @@
+# permissions for end users to view realtimejobdispatchers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: realtimejobdispatcher-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: heterflow
+    app.kubernetes.io/part-of: heterflow
+    app.kubernetes.io/managed-by: kustomize
+  name: realtimejobdispatcher-viewer-role
+rules:
+- apiGroups:
+  - heterflow.heterflow.com
+  resources:
+  - realtimejobdispatchers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - heterflow.heterflow.com
+  resources:
+  - realtimejobdispatchers/status
+  verbs:
+  - get

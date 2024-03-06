@@ -1,0 +1,12 @@
+apiVersion: heterflow.heterflow.com/v1beta1
+kind: RealtimeJobDispatcher
+metadata:
+  labels:
+    app.kubernetes.io/name: realtimejobdispatcher
+    app.kubernetes.io/instance: realtimejobdispatcher-sample
+    app.kubernetes.io/part-of: heterflow
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: heterflow
+  name: realtimejobdispatcher-sample
+spec:
+  # TODO(user): Add fields here
