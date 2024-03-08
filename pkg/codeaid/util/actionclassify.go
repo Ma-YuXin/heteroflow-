@@ -137,6 +137,7 @@ func ActionClassify(action string) Class {
 		return TransmissionInstruction
 	}
 }
+
 // func IsCallInstruction(action string) bool {
 // 	switch action {
 // 	case "call", "callq":
