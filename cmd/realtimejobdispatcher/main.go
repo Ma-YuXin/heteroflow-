@@ -71,7 +71,6 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
-
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled

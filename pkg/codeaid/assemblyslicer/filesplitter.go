@@ -3,23 +3,22 @@ package assemblyslicer
 import (
 	"bufio"
 	"fmt"
-	"heterflow/pkg/codeaid/flowmapmaker"
-	"heterflow/pkg/codeaid/util"
+	"heterflow/pkg/codeaid/graph"
+	"heterflow/pkg/codeaid/tools"
 	"heterflow/pkg/logger"
 	"os"
 	"time"
 )
 
 type Config struct {
-	build   *flowmapmaker.Build
-	extract Extract
+	Graph        graph.Graph
+	extract      Extract
+	FileFeatures graph.Features
 }
 
 func NewConfig() *Config {
 	return &Config{
-		build: &flowmapmaker.Build{
-			Relations: make(map[string]*flowmapmaker.FuncFeatures),
-		},
+		Graph:   graph.NewGraph(graph.Undirected),
 		extract: &IntelExtract{},
 	}
 }
@@ -27,22 +26,10 @@ func NewConfig() *Config {
 func (c *Config) SegmentFile(filepath string) {
 	start := time.Now()
 	defer func() {
-		fmt.Println("used action ", util.UsedAction)
-		fmt.Println("missed action", util.MissedAction)
+		fmt.Println("used action ", tools.UsedAction)
+		fmt.Println("missed action", tools.MissedAction)
 		fmt.Println("total time used", time.Since(start))
 	}()
-	// go func() {
-	// 	for {
-	// 		time.Sleep(time.Second * 3)
-	// 		bToMb := func(alloc uint64) uint64 { return alloc / 1024 }
-	// 		var m runtime.MemStats
-	// 		runtime.ReadMemStats(&m)
-	// 		fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
-	// 		fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
-	// 		fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
-	// 		fmt.Printf("\tNumGC = %v\n", m.NumGC)
-	// 	}
-	// }()
 	f, err := os.Open(filepath)
 	if err != nil {
 		logger.Fatal(f.Name() + "file path is wrong!")
@@ -51,24 +38,29 @@ func (c *Config) SegmentFile(filepath string) {
 	scan := bufio.NewScanner(f)
 	c.extract.removeleading(scan)
 	filefeature := c.readSegment(scan)
-	// root := c.build.BuildGraphFromRoot("main@@Base-0x50")
+	// root := c.build.GraphGraphFromRoot("main@@Base-0x50")
 	// c.build.AllFunctionName()
 	// c.build.BFS(root)
-	roots := c.build.BuildGraph()
-	filefeature.ControlFlowGraphRoots = roots
-	// for _, funcfeature := range roots {
-	// 	flowmapmaker.BFS(funcfeature)
+	// roots := c.Graph.BuildGraph()
+	// filefeature.ControlFlowGraphRoots = roots
+	c.FileFeatures = filefeature
+	// graph.FuncCalltimes(c.Graph)
+	// for _, node := range roots {
+	// 	graph.BFS(node.FuncFeatures)
 	// 	fmt.Println()
-	// 	fmt.Println(`********************************************************************************`)
+	// 	fmt.Println(`***************************************************`)
 	// 	fmt.Println()
 	// }
 }
-func (c *Config) readSegment(scan *bufio.Scanner) *flowmapmaker.FileFeatures {
-	filefeature := flowmapmaker.NewFileFeatures()
+func (c *Config) readSegment(scan *bufio.Scanner) graph.Features {
+	filefeature := graph.NewFeatures(graph.ProgrammerFeature)
 	for {
 		ff, isEnd := c.extract.segmentFeatures(scan)
-		c.build.AddNode(ff)
-		filefeature.AddFileFeatures(ff)
+		if v, ok := ff.(*graph.Node); ok {
+			c.Graph.AddNode(v)
+		}
+
+		filefeature.AddInfo(ff)
 		if isEnd {
 			break
 		}

@@ -23,7 +23,7 @@ func initLogger() {
 
 	//文件writeSyncer
 	fileWriteSyncer := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   "/mnt/data/nfs/myx/heteroflow/logs/error.log", //日志文件存放目录
+		Filename:   "/mnt/data/nfs/myx/tmp/error.log", //日志文件存放目录
 		MaxSize:    1024,                                          //文件大小限制,单位MB
 		MaxBackups: 5,                                             //最大保留日志文件数量
 		MaxAge:     15,                                            //日志文件保留天数

@@ -3,8 +3,8 @@ package assemblyslicer
 import (
 	"bufio"
 	"errors"
-	"heterflow/pkg/codeaid/flowmapmaker"
-	"heterflow/pkg/codeaid/util"
+	"heterflow/pkg/codeaid/graph"
+	"heterflow/pkg/codeaid/tools"
 	"heterflow/pkg/logger"
 	"log"
 	"strings"
@@ -56,8 +56,8 @@ func (ie *IntelExtract) removeleading(scan *bufio.Scanner) {
 	}
 }
 
-func (ie *IntelExtract) segmentFeatures(scan *bufio.Scanner) (*flowmapmaker.FuncFeatures, bool) {
-	funcfeatures := flowmapmaker.NewFuncFeatures()
+func (ie *IntelExtract) segmentFeatures(scan *bufio.Scanner) (graph.Features, bool) {
+	funcfeatures := graph.NewFeatures(graph.FuncFeatures)
 	for scan.Scan() {
 		line := scan.Text()
 		if len(line) < 4 {
@@ -71,49 +71,54 @@ func (ie *IntelExtract) segmentFeatures(scan *bufio.Scanner) (*flowmapmaker.Func
 	return funcfeatures, true
 }
 
-func (ie *IntelExtract) parseInstruction(inst string, funcfeatures *flowmapmaker.FuncFeatures) {
+func (ie *IntelExtract) parseInstruction(inst string, funcfeatures graph.Features) {
 	if strings.HasPrefix(inst, " ") {
 		ie.recordinstructionInfo(inst, funcfeatures)
 	} else {
-		var err error
-		funcfeatures.FuncName, err = ie.functionName(inst)
+		name, err := ie.functionName(inst)
 		if err != nil {
 			logger.Info(err.Error())
 		}
+		funcfeatures.AddInfo(name)
 	}
 }
 
-func (ie *IntelExtract) recordinstructionInfo(inst string, funcfeatures *flowmapmaker.FuncFeatures) {
+func (ie *IntelExtract) recordinstructionInfo(inst string, funcfeatures graph.Features) {
 	action, err := ie.verb(inst)
 	if err != nil {
 		logger.Info(err.Error())
 		return
 	}
-	class := util.ActionClassify(action)
-	switch class {
-	case util.TransmissionInstruction:
-		funcfeatures.TransmissionInstruction++
-	case util.IOInstruction:
-		funcfeatures.IOInstruction++
-	case util.ArithmeticInstruction:
-		funcfeatures.ArithmeticInstruction++
-	case util.LogicalInstruction:
-		funcfeatures.LogicalInstruction++
-	case util.StringInstruction:
-		funcfeatures.StringInstruction++
-	case util.ProgramTransferInstruction:
-		funcfeatures.ProgramTransferInstructionsInstruction++
-		callee, err := ie.callInstArgs(inst)
-		if err != nil {
-			logger.Info((err.Error()))
-			return
+	class := tools.ActionClassify(action)
+	if ff, ok := funcfeatures.(*graph.Node); ok {
+		ff.TotalInstruction++
+		switch class {
+		case tools.TransmissionInstruction:
+			ff.TransmissionInstruction++
+		case tools.IOInstruction:
+			ff.IOInstruction++
+		case tools.ArithmeticInstruction:
+			ff.ArithmeticInstruction++
+		case tools.LogicalInstruction:
+			ff.LogicalInstruction++
+		case tools.StringInstruction:
+			ff.StringInstruction++
+		case tools.ProgramTransferInstruction:
+			ff.ProgramTransferInstruction++
+			callee, err := ie.callInstArgs(inst)
+			if err != nil {
+				logger.Info((err.Error()))
+				return
+			}
+			ff.AddCallee(callee)
+		case tools.InterruptInstruction:
+			ff.InterruptInstruction++
+		case tools.PseudoInstruction:
+			ff.PseudoInstruction++
+		case tools.ProcessorControlInstruction:
+			ff.ProcessorControlInstruction++
+		case tools.OtherInstruction:
+			ff.OtherInstruction++
 		}
-		funcfeatures.AddCallee(callee)
-	case util.InterruptInstruction:
-		funcfeatures.InterruptInstruction++
-	case util.PseudoInstruction:
-		funcfeatures.PseudoInstruction++
-	case util.ProcessorControlInstruction:
-		funcfeatures.ProcessorControlInstruction++
 	}
 }
