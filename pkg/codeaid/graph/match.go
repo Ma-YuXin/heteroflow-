@@ -14,6 +14,7 @@ const (
 	Hungarian MatcherType = iota
 	KM
 	GaleShapley
+	threshold = 0.95
 )
 
 type Matcher interface {
@@ -87,7 +88,7 @@ func (adj *adjacentTable) init(left, right map[Features]empty) {
 				fmt.Println(err)
 			}
 			// fmt.Println("similarity  ", v1.Name(), v2.Name(), similarity)
-			if similarity > 0.9 {
+			if similarity > threshold {
 				if value, ok := adj.leftPref[v1.Name()]; ok {
 					value[v2.Name()] = similarity
 					adj.leftPref[v1.Name()] = value
@@ -103,7 +104,6 @@ func (adj *adjacentTable) init(left, right map[Features]empty) {
 			}
 		}
 	}
-
 }
 
 // Find 尝试为顶点 u 找到匹配
@@ -156,11 +156,20 @@ func (km *kM) prepare() {
 		str := strconv.Itoa(i)
 		mm := make(map[string]float64, len(km.leftPref))
 		for left, lp := range km.leftPref {
-			lp[str] = -100.0
-			mm[left] = -100.0
+			lp[str] = float64(0.000000000000000001)
+			mm[left] = float64(0.000000000000000001)
 		}
 		km.rightPref[str] = mm
 		km.virtual[str] = empty{}
+	}
+	for left, lp := range km.leftPref {
+		for right, rp := range km.leftPref {
+			if _, ok := lp[right]; !ok {
+				lp[right] = math.Inf(-1)
+				rp[left] = math.Inf(-1)
+			}
+		}
+		km.leftPref[left] = lp
 	}
 	// if km.swaped {
 	// 	km.leftPref, km.rightPref = km.rightPref, km.leftPref
@@ -193,7 +202,9 @@ func (km *kM) find(x string) bool {
 	for k := range km.leftPref[x] {
 		// fmt.Println("judge ", k, " weight is ", km.leftPref[x][k])
 		if v := km.visitedright[k]; !v {
-			if km.weightleft[x]+km.weightright[k]-km.leftPref[x][k] < 0.000000000000000003 {
+			// 0.000000000000000003
+			fmt.Println("value is  ", x, km.weightleft[x], k, km.weightright[k], km.leftPref[x][k], " km.weightleft[x]+km.weightright[k]-km.leftPref[x][k] is ", km.weightleft[x]+km.weightright[k]-km.leftPref[x][k])
+			if km.weightleft[x]+km.weightright[k]-km.leftPref[x][k] == 0 {
 				km.visitedright[k] = true
 				if km.match[k] == "" || km.find(km.match[k]) {
 					// fmt.Println(k, "is match to ", x)
@@ -201,7 +212,7 @@ func (km *kM) find(x string) bool {
 					return true
 				}
 			} else {
-				fmt.Println("set delte ", k, " ", km.weightleft[x], km.weightright[k], km.leftPref[x][k], km.weightleft[x]+km.weightright[k]-km.leftPref[x][k])
+				// fmt.Println("set delte ", k, " ", km.weightleft[x], km.weightright[k], km.leftPref[x][k], km.weightleft[x]+km.weightright[k]-km.leftPref[x][k])
 				km.delta[k] = min(km.delta[k], km.weightleft[x]+km.weightright[k]-km.leftPref[x][k])
 			}
 		}
@@ -254,17 +265,19 @@ func (km *kM) Match() float64 {
 			continue
 		}
 		if km.swaped {
-			km.match[left] = right
+			newmatcher[left] = right
 		} else {
-			km.match[right] = left
+			newmatcher[right] = left
 		}
 	}
 	km.match = newmatcher
 	for k, v := range km.match {
-		res += km.leftPref[v][k]
+		res += km.leftPref[k][v]
+		fmt.Println("res+=", "pair:", v, k, km.leftPref[k][v])
 	}
 	return res
 }
+
 func (km *kM) reset() {
 	for k := range km.visitedleft {
 		km.visitedleft[k] = false

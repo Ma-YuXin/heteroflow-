@@ -13,7 +13,7 @@ import (
 type ATExtract struct {
 }
 
-func (ate *ATExtract) callInstArgs(s string) (string, error) {
+func (ate ATExtract) callInstArgs(s string) (string, error) {
 	if len(s) < 39 {
 		return "", errors.New("pasering assembly file occur error , the line is too short , can't get call instruction args. content: " + s)
 	}
@@ -30,14 +30,14 @@ func (ate *ATExtract) callInstArgs(s string) (string, error) {
 	return s[pos+40 : len(s)-1], nil
 }
 
-func (ate *ATExtract) functionName(s string) (string, error) {
+func (ate ATExtract) functionName(s string) (string, error) {
 	if len(s) < 18 {
 		return "", errors.New("pasering assembly file occur error , the line is too short , can't get function name. content: " + s)
 	}
 	return s[18 : len(s)-2], nil
 }
 
-func (ate *ATExtract) verb(s string) (string, error) {
+func (ate ATExtract) verb(s string) (string, error) {
 	// defer func(s string) {
 	// 	if r := recover(); r != nil {
 	// 		fmt.Println("[Panic] ", s)
@@ -53,13 +53,13 @@ func (ate *ATExtract) verb(s string) (string, error) {
 	return s[32 : pos+32], nil
 }
 
-func (ate *ATExtract) removeleading(scan *bufio.Scanner) {
+func (ate ATExtract) removeleading(scan *bufio.Scanner) {
 	for i := 0; i < 6; i++ {
 		scan.Scan()
 	}
 }
 
-func (ate *ATExtract) segmentFeatures(scan *bufio.Scanner) (graph.Features, bool) {
+func (ate ATExtract) segmentFeatures(scan *bufio.Scanner) (graph.Features, bool) {
 	funcfeatures := graph.NewFeatures(graph.FuncFeatures)
 	for scan.Scan() {
 		line := scan.Text()
@@ -74,7 +74,7 @@ func (ate *ATExtract) segmentFeatures(scan *bufio.Scanner) (graph.Features, bool
 	return funcfeatures, true
 }
 
-func (ate *ATExtract) parseInstruction(inst string, funcfeatures graph.Features) {
+func (ate ATExtract) parseInstruction(inst string, funcfeatures graph.Features) {
 	if strings.HasPrefix(inst, " ") {
 		ate.recordinstructionInfo(inst, funcfeatures)
 	} else {
@@ -86,7 +86,7 @@ func (ate *ATExtract) parseInstruction(inst string, funcfeatures graph.Features)
 	}
 }
 
-func (ate *ATExtract) recordinstructionInfo(inst string, funcfeatures graph.Features) {
+func (ate ATExtract) recordinstructionInfo(inst string, funcfeatures graph.Features) {
 	action, err := ate.verb(inst)
 	if err != nil {
 		logger.Info(err.Error())

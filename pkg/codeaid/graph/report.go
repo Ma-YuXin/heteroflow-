@@ -12,12 +12,13 @@ const (
 	MapReporter ReportType = iota
 	CollectingReporter
 	CountingReporter
-	ChannelReporter
+	MaxReporter
 )
 
 type Reporter interface {
 	Record(vertexSet []Vertex)
-	Report()
+	Print()
+	Report(int) float64
 }
 
 type mapReporter struct {
@@ -33,27 +34,28 @@ type countingReporter struct {
 	cliques int
 }
 
-type channelReporter struct {
-	cliques chan []Vertex
+type maxReporter struct {
+	cliques []Vertex
 }
 
 func NewRepoter(class ReportType) Reporter {
 	switch class {
 	case MapReporter:
 		return &mapReporter{
-			store:              make(map[uint64]empty),
-			collectingReporter: collectingReporter{make([][]Vertex, 0)},
+			store:              make(map[uint64]empty, 100),
+			collectingReporter: collectingReporter{make([][]Vertex, 0, 100)},
 		}
 	case CollectingReporter:
-		return &collectingReporter{make([][]Vertex, 0)}
+		return &collectingReporter{make([][]Vertex, 0, 100)}
 	case CountingReporter:
 		return &countingReporter{}
-	case ChannelReporter:
-		return &channelReporter{make(chan []Vertex)}
+	case MaxReporter:
+		return &maxReporter{}
 	default:
 		return nil
 	}
 }
+
 func (r *mapReporter) Record(vertexSet []Vertex) {
 	hasher, err := hashSlice(vertexSet)
 	if err != nil {
@@ -63,43 +65,60 @@ func (r *mapReporter) Record(vertexSet []Vertex) {
 		r.collectingReporter.Record(vertexSet)
 	}
 }
+
+func (r *mapReporter) Print() {
+	fmt.Println("total :", len(r.cliques))
+	r.collectingReporter.Print()
+}
+
+func (r *mapReporter) Report(total int) float64 {
+	return r.collectingReporter.Report(total)
+}
+func (r *maxReporter) Record(vertexSet []Vertex) {
+	if len(vertexSet) > len(r.cliques) {
+		r.cliques = vertexSet
+	}
+}
+
+func (r *maxReporter) Print() {
+	fmt.Println(r.cliques)
+}
+
+func (r *maxReporter) Report(total int) float64 {
+	return float64(len(r.cliques)) / float64(total)
+}
+
 func (r *collectingReporter) Record(vertexSet []Vertex) {
 	cc := make([]Vertex, len(vertexSet))
 	copy(cc, vertexSet)
 	r.cliques = append(r.cliques, cc)
 }
 
+func (r *collectingReporter) Report(total int) float64 {
+	sum := 0
+	for _, v := range r.cliques {
+		sum += len(v)
+	}
+	return float64(total) / float64(sum)
+}
+
+func (r *collectingReporter) Print() {
+	fmt.Println("total :", len(r.cliques))
+	for _, v := range r.cliques {
+		fmt.Println(v)
+	}
+}
+
+func (r *countingReporter) Print() {
+	fmt.Println(r.cliques)
+}
+
 func (r *countingReporter) Record(vertexSet []Vertex) {
 	r.cliques += 1
 }
 
-func (r *channelReporter) Record(vertexSet []Vertex) {
-	cc := make([]Vertex, len(vertexSet))
-	copy(cc, vertexSet)
-	r.cliques <- cc
-}
-
-func (r *mapReporter) Report() {
-	fmt.Println("total :", len(r.cliques))
-	for _, v := range r.cliques {
-		fmt.Println(v)
-	}
-}
-
-func (r *collectingReporter) Report() {
-	fmt.Println("total :", len(r.cliques))
-	for _, v := range r.cliques {
-		fmt.Println(v)
-	}
-}
-
-func (r *countingReporter) Report() {
-	fmt.Println(r.cliques)
-}
-
-func (r *channelReporter) Report() {
-	c := <-r.cliques
-	fmt.Println(c)
+func (r *countingReporter) Report(total int) float64 {
+	return 0.0
 }
 
 // mapHash creates a hash of a map which can be used to compare if two maps are equal.
@@ -125,9 +144,9 @@ func hashSlice(vertexSet []Vertex) (uint64, error) {
 	// 返回计算出的哈希值
 	return totalHash, nil
 }
+
 func hashStruct(v Vertex) uint64 {
 	hasher := fnv.New64a()
-
 	_, err := hasher.Write([]byte(v.Key))
 	if err != nil {
 		panic(err)

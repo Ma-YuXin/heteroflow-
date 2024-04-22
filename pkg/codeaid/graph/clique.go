@@ -20,15 +20,19 @@ type ProductGraph struct {
 type empty struct{}
 
 var (
-	NumOfTopK = 100
+	NumOfTopK = 40
 )
 
-func (pg *ProductGraph) Edged(vex Vertex) VertexSet {
+func (pg ProductGraph) Edged(vex Vertex) VertexSet {
 	return pg.adjacencies[vex]
 }
 
-func (pg *ProductGraph) AllConnectedVertices() VertexSet {
-	result := make(VertexSet)
+func (pg ProductGraph) Size() int {
+	return len(pg.adjacencies)
+}
+
+func (pg ProductGraph) AllConnectedVertices() VertexSet {
+	result := make(VertexSet, 100)
 	for v, neighbours := range pg.adjacencies {
 		if !neighbours.IsEmpty() {
 			result.Add(Vertex(v))
@@ -37,7 +41,7 @@ func (pg *ProductGraph) AllConnectedVertices() VertexSet {
 	return result
 }
 
-func (pg *ProductGraph) Degree(vex Vertex) int {
+func (pg ProductGraph) Degree(vex Vertex) int {
 	return len(pg.adjacencies[vex])
 }
 
@@ -170,7 +174,7 @@ func union(v1, v2 map[Features]empty) map[Features]empty {
 	}
 	return result
 }
-func NewProductGraph(g1, g2 Graph) *ProductGraph {
+func NewProductGraph(g1, g2 Graph) ProductGraph {
 	res := ProductGraph{make(map[Vertex]VertexSet)}
 	if graph1, ok := g1.(*UndirectedGraph); ok {
 		graph1.appendLinkInfo()
@@ -203,7 +207,7 @@ func NewProductGraph(g1, g2 Graph) *ProductGraph {
 
 	// 运行匈牙利算法
 	fmt.Printf("left length is : %d  right length is : %d\n", len(total1), len(total2))
-	matcher := NewMatcher(KM, &table)
+	matcher := NewMatcher(GaleShapley, &table)
 	fmt.Printf("leftPref length is : %d  rightPref length is : %d\n", len(table.leftPref), len(table.rightPref))
 	result := matcher.Match()
 	matched := matcher.Result()
@@ -270,10 +274,10 @@ func NewProductGraph(g1, g2 Graph) *ProductGraph {
 	// 	fmt.Println(k, "    ", v)
 	// }
 	// fmt.Println("Product graph ------------------------------------")
-	return &res
+	return res
 }
 
-func BronKerbosch(pg *ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
+func BronKerbosch(pg ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
 	if p.IsEmpty() && x.IsEmpty() {
 		fmt.Println(r)
 		reporter.Record(r)
@@ -289,7 +293,7 @@ func BronKerbosch(pg *ProductGraph, reporter Reporter, r []Vertex, p, x VertexSe
 	}
 }
 
-func BronKerboschPivot(pg *ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
+func BronKerboschPivot(pg ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
 	if p.IsEmpty() && x.IsEmpty() {
 		fmt.Println(r)
 		reporter.Record(r)
@@ -307,9 +311,9 @@ func BronKerboschPivot(pg *ProductGraph, reporter Reporter, r []Vertex, p, x Ver
 	}
 }
 
-func BronKerbosch2(pg *ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
+func BronKerbosch2(pg ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
 	if p.IsEmpty() && x.IsEmpty() {
-		fmt.Println(r)
+		// fmt.Println(r)
 		reporter.Record(r)
 	}
 	for !p.IsEmpty() {
@@ -317,7 +321,7 @@ func BronKerbosch2(pg *ProductGraph, reporter Reporter, r []Vertex, p, x VertexS
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
-		fmt.Println("to find clique which include ", v)
+		// fmt.Println("to find clique which include ", v)
 		neighbors := pg.Edged(v)
 		candidate := p.Intersection(neighbors)
 		for node := range candidate {

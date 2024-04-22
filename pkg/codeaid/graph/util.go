@@ -5,7 +5,6 @@ import (
 	"math"
 )
 
-
 func BFS(root Features) {
 	// for k, v := range b.Relations {
 	// 	fmt.Printf("%s %+v \n", k, v.Callee)
@@ -94,17 +93,4 @@ func CosineSimilarity(v1, v2 Features) (float64, error) {
 		return 0, fmt.Errorf("norm of vector must not be zero")
 	}
 	return product / (normV1 * normV2), nil
-}
-
-func max(i, j float64) float64 {
-	if i < j {
-		return j
-	}
-	return i
-}
-func min(i,j float64)float64{
-	if i<j{
-		return i
-	}
-	return j
 }

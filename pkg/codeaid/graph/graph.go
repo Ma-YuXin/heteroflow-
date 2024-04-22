@@ -1,11 +1,7 @@
 package graph
 
 import (
-	"encoding/gob"
-	"encoding/json"
-	"fmt"
 	"heterflow/pkg/logger"
-	"os"
 	"sort"
 )
 
@@ -37,6 +33,7 @@ func NewGraph(class GraphType) Graph {
 		return nil
 	}
 }
+
 func (g *DirectedGraph) AddNode(ff *Node) {
 	addNode(g, ff)
 }
@@ -44,6 +41,7 @@ func (g *DirectedGraph) AddNode(ff *Node) {
 func (g *DirectedGraph) BuildGraph() map[string]*Node {
 	return buildGraph(g)
 }
+
 func (g *DirectedGraph) NodeNum() int {
 	return len(g.Relations)
 }
@@ -177,69 +175,4 @@ func findTopKValues(m map[string]*Node, featureSelect func(Features) int, k int)
 	}
 
 	return topK
-}
-
-func WriteGobFile(filename string, animal Graph) error {
-	// 将实例转换为 JSON
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := gob.NewEncoder(file)
-	if undirectGraph, ok := animal.(*UndirectedGraph); ok {
-		// for k, v := range undirectGraph.Relations {
-		// 	fmt.Println(k, *v)
-		// }
-		if err := encoder.Encode(*undirectGraph); err != nil {
-			fmt.Println("---------------------------------------")
-			fmt.Println(err)
-			fmt.Println("---------------------------------------")
-			return err
-		}
-	}
-	return nil
-}
-
-func ReadGobFile(filename string) (Graph, error) {
-	var data UndirectedGraph
-	file, err := os.Open(filename)
-	if err != nil {
-		return &data, err
-	}
-	defer file.Close()
-
-	decoder := gob.NewDecoder(file)
-	if err := decoder.Decode(&data); err != nil {
-		return &data, err
-	}
-
-	return &data, nil
-
-}
-
-func WriteJSONFile(filename string, data Graph) error {
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	return encoder.Encode(data)
-}
-
-func ReadJSONFile(filename string) (Graph, error) {
-	var data UndirectedGraph
-	file, err := os.Open(filename)
-	if err != nil {
-		return &data, err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(&data)
-	return &data, err
-
 }
