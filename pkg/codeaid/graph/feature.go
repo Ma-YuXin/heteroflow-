@@ -22,6 +22,7 @@ type GraphType int
 
 type Programmer struct {
 	ProgrammerName                   string
+	TotalInstruction                 int
 	TotalTransmissionInstruction     int
 	TotalIOInstruction               int
 	TotalArithmeticInstruction       int
@@ -87,7 +88,7 @@ func (ff *Node) AddInfo(funcFeatures interface{}) {
 	}
 }
 func (ff *Programmer) Features() []int {
-	return []int{ff.TotalTransmissionInstruction, ff.TotalIOInstruction, ff.TotalArithmeticInstruction, ff.TotalLogicalInstruction, ff.TotalStringInstruction, ff.TotalProgramTransferInstruction, ff.TotalInterruptInstruction, ff.TotalPseudoInstruction, ff.TotalProcessorControlInstruction}
+	return []int{ff.TotalInstruction, ff.TotalTransmissionInstruction, ff.TotalIOInstruction, ff.TotalArithmeticInstruction, ff.TotalLogicalInstruction, ff.TotalStringInstruction, ff.TotalProgramTransferInstruction, ff.TotalInterruptInstruction, ff.TotalPseudoInstruction, ff.TotalProcessorControlInstruction}
 }
 
 func (ff *Programmer) Nodes() map[string]Features {
@@ -100,6 +101,7 @@ func (ff *Programmer) Name() string {
 
 func (ff *Programmer) AddInfo(funcFeatures interface{}) {
 	if funcfeat, ok := funcFeatures.(*Node); ok {
+		ff.TotalInstruction += funcfeat.TotalInstruction
 		ff.TotalTransmissionInstruction += funcfeat.TransmissionInstruction
 		ff.TotalIOInstruction += funcfeat.IOInstruction
 		ff.TotalArithmeticInstruction += funcfeat.ArithmeticInstruction
@@ -111,6 +113,17 @@ func (ff *Programmer) AddInfo(funcFeatures interface{}) {
 		ff.TotalProcessorControlInstruction += funcfeat.ProcessorControlInstruction
 	} else if funcfeat, ok := funcFeatures.(string); ok {
 		ff.ProgrammerName = funcfeat
+	} else if funcfeat, ok := funcFeatures.(*Programmer); ok {
+		ff.TotalInstruction += funcfeat.TotalInstruction
+		ff.TotalTransmissionInstruction += funcfeat.TotalTransmissionInstruction
+		ff.TotalIOInstruction += funcfeat.TotalIOInstruction
+		ff.TotalArithmeticInstruction += funcfeat.TotalArithmeticInstruction
+		ff.TotalLogicalInstruction += funcfeat.TotalLogicalInstruction
+		ff.TotalStringInstruction += funcfeat.TotalStringInstruction
+		ff.TotalProgramTransferInstruction += funcfeat.TotalProgramTransferInstruction
+		ff.TotalInterruptInstruction += funcfeat.TotalInterruptInstruction
+		ff.TotalPseudoInstruction += funcfeat.TotalPseudoInstruction
+		ff.TotalProcessorControlInstruction += funcfeat.TotalProcessorControlInstruction
 	} else {
 		logger.Error("can't add to Programmer Feature,the type is unfit ")
 	}

@@ -13,10 +13,11 @@ type Graph interface {
 }
 type DirectedGraph struct {
 	Relations map[string]*Node
+	
 }
 
 type UndirectedGraph struct {
-	Relations map[string]*Node
+	DirectedGraph
 }
 
 func NewGraph(class GraphType) Graph {
@@ -27,73 +28,13 @@ func NewGraph(class GraphType) Graph {
 		}
 	case Undirected:
 		return &UndirectedGraph{
-			Relations: make(map[string]*Node),
+			DirectedGraph: DirectedGraph{
+				Relations: make(map[string]*Node),
+			},
 		}
 	default:
 		return nil
 	}
-}
-
-func (g *DirectedGraph) AddNode(ff *Node) {
-	addNode(g, ff)
-}
-
-func (g *DirectedGraph) BuildGraph() map[string]*Node {
-	return buildGraph(g)
-}
-
-func (g *DirectedGraph) NodeNum() int {
-	return len(g.Relations)
-}
-
-func (g *DirectedGraph) Relation() map[string]*Node {
-	return g.Relations
-}
-
-func buildGraph(g Graph) map[string]*Node {
-	children := make(map[string]bool)
-	Relations := g.Relation()
-	for _, parent := range Relations {
-		for childName := range parent.Callee {
-			if _, exits := Relations[childName]; !exits {
-				logger.Error("child " + childName + " is not found")
-			}
-			parent.Callee[childName] = Relations[childName]
-			if childName != parent.FuncName {
-				children[childName] = true
-			}
-		}
-	}
-	roots := make(map[string]*Node)
-	for name, node := range Relations {
-		if !children[name] {
-			roots[name] = node
-		}
-	}
-	return roots
-}
-
-func buildGraphFromRoot(g Graph, root string) map[string]*Node {
-	Relations := g.Relation()
-	if fuc, ok := Relations[root]; ok {
-		for calleeName := range fuc.Callee {
-			// fmt.Printf("%s ", calleeName)
-			if v := fuc.Callee[calleeName]; v == nil {
-				fuc.Callee[calleeName] = Relations[calleeName]
-				buildGraphFromRoot(g, calleeName)
-			}
-		}
-		return map[string]*Node{
-			fuc.FuncName: fuc,
-		}
-	} else {
-		logger.Error("_" + root + "_" + " is not found ")
-		return nil
-	}
-}
-
-func (g *UndirectedGraph) AddNode(ff *Node) {
-	addNode(g, ff)
 }
 
 func addNode(g Graph, ff *Node) {
@@ -122,6 +63,26 @@ func addNode(g Graph, ff *Node) {
 	}
 }
 
+func (g *DirectedGraph) AddNode(ff *Node) {
+	addNode(g, ff)
+}
+
+func (g *DirectedGraph) BuildGraph() map[string]*Node {
+	return buildGraph(g)
+}
+
+func (g *DirectedGraph) NodeNum() int {
+	return len(g.Relations)
+}
+
+func (g *DirectedGraph) Relation() map[string]*Node {
+	return g.Relations
+}
+
+// func (g *UndirectedGraph) AddNode(ff *Node) {
+// 	addNode(g, ff)
+// }
+
 func (g *UndirectedGraph) BuildGraph() map[string]*Node {
 	g.appendLinkInfo()
 	return buildGraph(g)
@@ -135,13 +96,13 @@ func (g *UndirectedGraph) appendLinkInfo() {
 	}
 }
 
-func (g *UndirectedGraph) Relation() map[string]*Node {
-	return g.Relations
-}
+// func (g *UndirectedGraph) Relation() map[string]*Node {
+// 	return g.Relations
+// }
 
-func (g *UndirectedGraph) NodeNum() int {
-	return len(g.Relations)
-}
+// func (g *UndirectedGraph) NodeNum() int {
+// 	return len(g.Relations)
+// }
 
 func TopK(m map[string]*Node, featureSelect func(Features) int, k int) map[Features]empty {
 	if len(m) < k {

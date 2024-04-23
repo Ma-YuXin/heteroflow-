@@ -27,16 +27,29 @@ func Similarity() float64 {
 	// }
 	// return 0.0
 
+	// config1, config2 := getConfig()
+	// filesimilarity, err := proSimilarity(config1, config2)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// cfwsimilarity, err := cfwSimilarity(config1, config2)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// return calculate(filesimilarity, cfwsimilarity)
 	config1, config2 := getConfig()
-	filesimilarity, err := proSimilarity(config1, config2)
+	gk1 := graph.NewGraphKernels(config1.Graph, 3)
+	t1 := gk1.Iterator()
+	sv1 := t1.Injection()
+	gk2 := graph.NewGraphKernels(config2.Graph, 3)
+	t2 := gk2.Iterator()
+	sv2 := t2.Injection()
+	ans, err := sv1.InnerProduct(sv2)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
-	cfwsimilarity, err := cfwSimilarity(config1, config2)
-	if err != nil {
-		panic(err)
-	}
-	return calculate(filesimilarity, cfwsimilarity)
+	fmt.Println(ans)
+	return 0.0
 }
 func calculate(filesimilarity, cfwsimilarity float64) float64 {
 	fmt.Println("filesimilarity", filesimilarity, "cfwsimilarity", cfwsimilarity)
