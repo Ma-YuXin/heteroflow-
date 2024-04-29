@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"heterflow/pkg/codeaid/graph"
 	"heterflow/pkg/codeaid/tools"
+	"heterflow/pkg/codeaid/util"
 	"heterflow/pkg/logger"
 	"io"
 	"os"
@@ -19,18 +20,24 @@ var (
 type Config struct {
 	Graph        graph.Graph
 	FileFeatures graph.Features
+	DynamicLib   util.VertexSet[string, struct{}]
 }
 
-func NewConfig() Config {
-	return Config{
-		Graph: graph.NewGraph(graph.Undirected),
+func (c *Config) Process(filepath string) {
+	c.Graph = graph.NewGraph(graph.Undirected)
+	c.DynamicLib = DynamicLibs(filepath)
+	path, filename := RedirctedassembleToFile(filepath)
+	c.SegmentFile(path)
+	err := WriteJSONFile("/mnt/data/nfs/myx/tmp/json/"+filename+".json", *c)
+	if err != nil {
+		fmt.Println(err)
 	}
 }
 
 func (c *Config) SegmentFile(filepath string) {
 	start := time.Now()
 	defer func() {
-		fmt.Println("used action ", tools.UsedAction)
+		// fmt.Println("used action ", tools.UsedAction)
 		fmt.Println("missed action", tools.MissedAction)
 		fmt.Println("total time used", time.Since(start))
 	}()
@@ -80,8 +87,9 @@ func WriteJSONFile(filename string, t Config) error {
 	defer file.Close()
 	encoder := json.NewEncoder(file)
 	enc := &configEncoded{
-		Feature: encodedFeature{Type: "", Data: nil},
-		Graph:   encodedGraph{Type: "", Data: nil},
+		Feature:    encodedFeature{Type: "", Data: nil},
+		Graph:      encodedGraph{Type: "", Data: nil},
+		DynamicLib: t.DynamicLib,
 	}
 	switch t.FileFeatures.(type) {
 	case *graph.Node:
@@ -134,6 +142,7 @@ func ReadJSONFile(filename string) (*Config, error) {
 	if err := decoder.Decode(&enc); err != nil && err != io.EOF {
 		return data, err
 	}
+	data.DynamicLib = enc.DynamicLib
 	// fmt.Println("enc", enc.Feature.Type, enc.Graph.Type)
 	// fmt.Println("enc", enc.Feature.Data, enc.Graph.Data)
 	switch enc.Feature.Type {
@@ -184,6 +193,7 @@ type encodedGraph struct {
 }
 
 type configEncoded struct {
-	Feature encodedFeature `json:"feature"`
-	Graph   encodedGraph   `json:"graph"`
+	Feature    encodedFeature                   `json:"feature"`
+	Graph      encodedGraph                     `json:"graph"`
+	DynamicLib util.VertexSet[string, struct{}] `json:"dynamicLib"`
 }

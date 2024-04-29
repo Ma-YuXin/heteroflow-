@@ -1,6 +1,8 @@
 package graph
 
-import "heterflow/pkg/logger"
+import (
+	"heterflow/pkg/logger"
+)
 
 type FeatureType int
 

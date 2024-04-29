@@ -30,7 +30,7 @@ func NewMatcher(class MatcherType, adj *adjacentTable) Matcher {
 		return &hungarian{
 			adjacentTable: adj,
 			match:         map[string]string{},
-			visited:       map[string]empty{},
+			visited:       map[string]struct{}{},
 		}
 	case KM:
 		return &kM{
@@ -54,13 +54,13 @@ func NewMatcher(class MatcherType, adj *adjacentTable) Matcher {
 type hungarian struct {
 	*adjacentTable
 	match   map[string]string
-	visited map[string]empty
-	// left, right map[Features]empty
+	visited map[string]struct{}
+	// left, right map[Features]struct{}
 }
 type galeshapley struct {
 	*adjacentTable
 	match map[string]string
-	// left, right map[Features]empty
+	// left, right map[Features]struct{}
 }
 type kM struct {
 	*adjacentTable
@@ -69,18 +69,18 @@ type kM struct {
 	weightleft   map[string]float64
 	weightright  map[string]float64
 	delta        map[string]float64
-	// left, right  map[Features]empty
+	// left, right  map[Features]struct{}
 	match map[string]string
 }
 
 type adjacentTable struct {
 	leftPref  map[string]map[string]float64
 	rightPref map[string]map[string]float64
-	virtual   map[string]empty
+	virtual   map[string]struct{}
 	swaped    bool
 }
 
-func (adj *adjacentTable) init(left, right map[Features]empty) {
+func (adj *adjacentTable) init(left, right map[Features]struct{}) {
 	for v1 := range left {
 		for v2 := range right {
 			similarity, err := Pearson(v1, v2)
@@ -110,7 +110,7 @@ func (adj *adjacentTable) init(left, right map[Features]empty) {
 func (table *hungarian) find(u string) bool {
 	for v := range table.leftPref[u] {
 		if _, ok := table.visited[v]; !ok {
-			table.visited[v] = empty{}
+			table.visited[v] = struct{}{}
 			if table.match[v] == "" || table.find(table.match[v]) {
 				table.match[v] = u
 				return true
@@ -131,7 +131,7 @@ func (table *hungarian) Right() map[string]map[string]float64 {
 func (table *hungarian) Match() float64 {
 	var result int
 	for u := range table.leftPref {
-		table.visited = make(map[string]empty)
+		table.visited = make(map[string]struct{})
 		if table.find(u) {
 			result++
 		}
@@ -160,7 +160,7 @@ func (km *kM) prepare() {
 			mm[left] = float64(0.000000000000000001)
 		}
 		km.rightPref[str] = mm
-		km.virtual[str] = empty{}
+		km.virtual[str] = struct{}{}
 	}
 	for left, lp := range km.leftPref {
 		for right, rp := range km.leftPref {
@@ -345,7 +345,7 @@ func (gs *galeshapley) prepare() {
 			m[left] = math.Inf(-1)
 		}
 		gs.rightPref[str] = m
-		gs.virtual[str] = empty{}
+		gs.virtual[str] = struct{}{}
 	}
 }
 

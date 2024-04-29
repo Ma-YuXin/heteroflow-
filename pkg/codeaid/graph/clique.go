@@ -1,8 +1,8 @@
 package graph
 
 import (
-	"errors"
 	"fmt"
+	"heterflow/pkg/codeaid/util"
 	"heterflow/pkg/logger"
 )
 
@@ -18,18 +18,18 @@ type Pair struct {
 }
 type Vertex Pair
 
-type VertexSet map[Vertex]empty
+// type VertexSet map[Vertex]struct{}
+// type VertexSets util.VertexSet[Vertex, struct{}]
 
 type ProductGraph struct {
-	adjacencies map[Vertex]VertexSet
+	adjacencies map[Vertex]util.VertexSet[Vertex, struct{}]
 }
-type empty struct{}
 
 var (
 	NumOfTopK = 40
 )
 
-func (pg ProductGraph) Edged(vex Vertex) VertexSet {
+func (pg ProductGraph) Edged(vex Vertex) util.VertexSet[Vertex, struct{}] {
 	return pg.adjacencies[vex]
 }
 
@@ -37,12 +37,15 @@ func (pg ProductGraph) Size() int {
 	return len(pg.adjacencies)
 }
 
-func (pg ProductGraph) AllConnectedVertices() VertexSet {
-	result := make(VertexSet, 100)
+func (pg ProductGraph) AllConnectedVertices() util.VertexSet[Vertex, struct{}] {
+	result := make(util.VertexSet[Vertex, struct{}], 100)
 	for v, neighbours := range pg.adjacencies {
-		if !neighbours.IsEmpty() {
-			result.Add(Vertex(v))
+		if !util.IsEmpty(neighbours) {
+			util.Add(result, Vertex(v))
 		}
+		// if !neighbours.IsEmpty() {
+		// 	result.Add(Vertex(v))
+		// }
 	}
 	return result
 }
@@ -51,101 +54,101 @@ func (pg ProductGraph) Degree(vex Vertex) int {
 	return len(pg.adjacencies[vex])
 }
 
-func (v VertexSet) Pop() (Vertex, error) {
-	for k := range v {
-		v.Remove(k)
-		return k, nil
-	}
-	return Vertex{}, errors.New("vertex set is empty, can't pop a vertex")
-}
+// func (v VertexSet) Pop() (Vertex, error) {
+// 	for k := range v {
+// 		v.Remove(k)
+// 		return k, nil
+// 	}
+// 	return Vertex{}, errors.New("vertex set is struct{}, can't pop a vertex")
+// }
 
-func (v VertexSet) IsEmpty() bool {
-	return len(v) == 0
-}
+// func (v VertexSet) IsEmpty() bool {
+// 	return len(v) == 0
+// }
 
-func (v VertexSet) IsDisjoint(input VertexSet) bool {
-	small, large := v, input
-	if len(small) > len(large) {
-		small, large = input, v
-	}
-	for v := range small {
-		if large.Contains(v) {
-			return false
-		}
-	}
-	return true
-}
+// func (v VertexSet) IsDisjoint(input VertexSet) bool {
+// 	small, large := v, input
+// 	if len(small) > len(large) {
+// 		small, large = input, v
+// 	}
+// 	for v := range small {
+// 		if large.Contains(v) {
+// 			return false
+// 		}
+// 	}
+// 	return true
+// }
 
-func (v VertexSet) Contains(vex Vertex) bool {
-	_, ok := v[vex]
-	return ok
-}
+// func (v VertexSet) Contains(vex Vertex) bool {
+// 	_, ok := v[vex]
+// 	return ok
+// }
 
-func (v VertexSet) Remove(vex Vertex) {
-	delete(v, vex)
-}
+// func (v VertexSet) Remove(vex Vertex) {
+// 	delete(v, vex)
+// }
 
-func (v VertexSet) Intersection(other VertexSet) VertexSet {
-	small, large := v, other
-	if len(small) > len(large) {
-		small, large = other, v
-	}
-	result := make(VertexSet, len(small))
-	for v := range small {
-		if large.Contains(v) {
-			result.Add(v)
-		}
-	}
-	return result
-}
+// func (v VertexSet) Intersection(other VertexSet) VertexSet {
+// 	small, large := v, other
+// 	if len(small) > len(large) {
+// 		small, large = other, v
+// 	}
+// 	result := make(VertexSet, len(small))
+// 	for v := range small {
+// 		if large.Contains(v) {
+// 			result.Add(v)
+// 		}
+// 	}
+// 	return result
+// }
 
-func (v VertexSet) Difference(other VertexSet) VertexSet {
-	result := make(VertexSet, len(v))
-	for val := range v {
-		if !other.Contains(val) {
-			result.Add(val)
-		}
-	}
-	return result
-}
+// func (v VertexSet) Difference(other VertexSet) VertexSet {
+// 	result := make(VertexSet, len(v))
+// 	for val := range v {
+// 		if !other.Contains(val) {
+// 			result.Add(val)
+// 		}
+// 	}
+// 	return result
+// }
 
-func (v VertexSet) Union(another VertexSet) VertexSet {
-	result := make(VertexSet, len(v))
-	for val := range v {
-		result.Add(val)
-	}
-	for val := range another {
-		result.Add(val)
-	}
-	return result
-}
+// func (v VertexSet) Union(another VertexSet) VertexSet {
+// 	result := make(VertexSet, len(v))
+// 	for val := range v {
+// 		result.Add(val)
+// 	}
+// 	for val := range another {
+// 		result.Add(val)
+// 	}
+// 	return result
+// }
 
-func (v VertexSet) Add(vex Vertex) {
-	v[vex] = struct{}{}
-}
+// func (v VertexSet) Add(vex Vertex) {
+// 	v[vex] = struct{}{}
+// }
 
-func (v VertexSet) IntersectionLen(other VertexSet) int {
-	small, large := v, other
-	if len(small) > len(large) {
-		small, large = other, v
-	}
-	result := 0
-	for v := range small {
-		if large.Contains(v) {
-			result++
-		}
-	}
-	return result
-}
+// func (v VertexSet) IntersectionLen(other VertexSet) int {
+// 	small, large := v, other
+// 	if len(small) > len(large) {
+// 		small, large = other, v
+// 	}
+// 	result := 0
+// 	for v := range small {
+// 		if large.Contains(v) {
+// 			result++
+// 		}
+// 	}
+// 	return result
+// }
 
-func (v VertexSet) Pick() (Vertex, error) {
-	for v := range v {
-		return v, nil
-	}
-	return Vertex{}, errors.New("attempt to pick from empty set")
-}
+// func (v VertexSet) Pick() (Vertex, error) {
+// 	for v := range v {
+// 		return v, nil
+// 	}
+// 	return Vertex{}, errors.New("attempt to pick from struct{} set")
+// }
 
-func topCallTimes(rel map[string]*Node) map[Features]empty {
+func topCallTimes(rel map[string]*Node) map[Features]struct{} {
 	times := NumOfTopK
 	if len(rel) < NumOfTopK {
 		times = len(rel)
@@ -157,7 +160,7 @@ func topCallTimes(rel map[string]*Node) map[Features]empty {
 		return 0
 	}, times)
 }
-func topInstructions(rel map[string]*Node) map[Features]empty {
+func topInstructions(rel map[string]*Node) map[Features]struct{} {
 	times := NumOfTopK
 	if len(rel) < NumOfTopK {
 		times = len(rel)
@@ -169,19 +172,19 @@ func topInstructions(rel map[string]*Node) map[Features]empty {
 		return 0
 	}, times)
 }
-func union(v1, v2 map[Features]empty) map[Features]empty {
-	result := make(map[Features]empty, len(v1))
+func union(v1, v2 map[Features]struct{}) map[Features]struct{} {
+	result := make(map[Features]struct{}, len(v1))
 	for val := range v1 {
-		result[val] = empty{}
+		result[val] = struct{}{}
 	}
 	for val := range v2 {
-		result[val] = empty{}
+		result[val] = struct{}{}
 
 	}
 	return result
 }
 func NewProductGraph(g1, g2 Graph) ProductGraph {
-	res := ProductGraph{make(map[Vertex]VertexSet)}
+	res := ProductGraph{make(map[Vertex]util.VertexSet[Vertex, struct{}])}
 	if graph1, ok := g1.(*UndirectedGraph); ok {
 		graph1.appendLinkInfo()
 	}
@@ -207,7 +210,7 @@ func NewProductGraph(g1, g2 Graph) ProductGraph {
 	table := adjacentTable{
 		leftPref:  map[string]map[string]float64{},
 		rightPref: map[string]map[string]float64{},
-		virtual:   map[string]empty{},
+		virtual:   map[string]struct{}{},
 	}
 	table.init(total1, total2)
 
@@ -263,14 +266,14 @@ func NewProductGraph(g1, g2 Graph) ProductGraph {
 			_, ok2 := rel1[left1].Callee[left2]
 			if ok1 == ok2 {
 				if val, ok := res.adjacencies[Vertex{right1, left1}]; ok {
-					val[Vertex{right2, left2}] = empty{}
+					val[Vertex{right2, left2}] = struct{}{}
 				} else {
-					res.adjacencies[Vertex{right1, left1}] = VertexSet{Vertex{right2, left2}: empty{}}
+					res.adjacencies[Vertex{right1, left1}] = util.VertexSet[Vertex, struct{}]{Vertex{right2, left2}: struct{}{}}
 				}
 				if val, ok := res.adjacencies[Vertex{right2, left2}]; ok {
-					val[Vertex{right1, left1}] = empty{}
+					val[Vertex{right1, left1}] = struct{}{}
 				} else {
-					res.adjacencies[Vertex{right2, left2}] = VertexSet{Vertex{right1, left1}: empty{}}
+					res.adjacencies[Vertex{right2, left2}] = util.VertexSet[Vertex, struct{}]{Vertex{right1, left1}: struct{}{}}
 				}
 			}
 		}
@@ -283,60 +286,64 @@ func NewProductGraph(g1, g2 Graph) ProductGraph {
 	return res
 }
 
-func BronKerbosch(pg ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
-	if p.IsEmpty() && x.IsEmpty() {
+func BronKerbosch(pg ProductGraph, reporter Reporter, r []Vertex, p, x util.VertexSet[Vertex, struct{}]) {
+	if util.IsEmpty(p) && util.IsEmpty(x) {
 		fmt.Println(r)
 		reporter.Record(r)
 	}
-	for !p.IsEmpty() {
-		v, err := p.Pop()
+	for !util.IsEmpty(p) {
+		v, err := util.Pop(p)
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
 		neighbors := pg.Edged(v)
-		BronKerbosch(pg, reporter, append(r, v), p.Intersection(neighbors), x.Intersection(neighbors))
-		x.Add(v)
+		BronKerbosch(pg, reporter, append(r, v), util.Intersection(p, neighbors), util.Intersection(x, neighbors))
+
+		util.Add(x, v)
 	}
 }
 
-func BronKerboschPivot(pg ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
-	if p.IsEmpty() && x.IsEmpty() {
+func BronKerboschPivot(pg ProductGraph, reporter Reporter, r []Vertex, p, x util.VertexSet[Vertex, struct{}]) {
+	if util.IsEmpty(p) && util.IsEmpty(x) {
 		fmt.Println(r)
 		reporter.Record(r)
 	}
-	u, err := p.Union(x).Pop()
+	u, err := util.Pop(util.Union(p, x))
+
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
-	candidates := p.Difference(pg.Edged(u))
+	candidates := util.Difference(p, pg.Edged(u))
 	for v := range candidates {
 		neighbors := pg.Edged(v)
-		BronKerboschPivot(pg, reporter, append(r, v), p.Intersection(neighbors), x.Intersection(neighbors))
-		p.Remove(u)
-		x.Add(v)
+		BronKerboschPivot(pg, reporter, append(r, v), util.Intersection(p, neighbors), util.Intersection(x, neighbors))
+		util.Remove(p, u)
+		util.Add(x, v)
 	}
 }
 
-func BronKerbosch2(pg ProductGraph, reporter Reporter, r []Vertex, p, x VertexSet) {
-	if p.IsEmpty() && x.IsEmpty() {
-		// fmt.Println(r)
+func BronKerbosch2(pg ProductGraph, reporter Reporter, r []Vertex, p, x util.VertexSet[Vertex, struct{}]) {
+	if util.IsEmpty(p) && util.IsEmpty(x) {
+		fmt.Println(r)
 		reporter.Record(r)
 	}
-	for !p.IsEmpty() {
-		v, err := p.Pop()
+	for !util.IsEmpty(p) {
+		v, err := util.Pop(p)
 		if err != nil {
 			logger.Fatal(err.Error())
 		}
 		// fmt.Println("to find clique which include ", v)
 		neighbors := pg.Edged(v)
-		candidate := p.Intersection(neighbors)
+		candidate := util.Intersection(p, neighbors)
 		for node := range candidate {
 			if pg.Degree(node) < len(r) {
-				candidate.Remove(node)
+				util.Remove(candidate, node)
+				// candidate.Remove(node)
 			}
 		}
-		BronKerbosch2(pg, reporter, append(r, v), candidate, x.Intersection(neighbors))
-		x.Add(v)
+		BronKerbosch2(pg, reporter, append(r, v), candidate, util.Intersection(x, neighbors))
+		util.Add(x, v)
+
 	}
 }
 
@@ -344,19 +351,19 @@ func BronKerbosch2aGP(graph *ProductGraph, reporter Reporter) {
 	// Bron-Kerbosch algorithm with pivot of highest degree within remaining candidates
 	// chosen from candidates only (IK_GP).
 	candidates := graph.AllConnectedVertices()
-	if candidates.IsEmpty() {
+	if util.IsEmpty(candidates) {
 		return
 	}
-	excluded := make(VertexSet, len(candidates))
+	excluded := make(util.VertexSet[Vertex, struct{}], len(candidates))
 	visit(graph, reporter, MaxDegreeLocal, nil, candidates, excluded)
 }
 
-func visit(graph *ProductGraph, reporter Reporter, pivotSelection PivotSelection, clique []Vertex, candidates VertexSet, excluded VertexSet) {
+func visit(graph *ProductGraph, reporter Reporter, pivotSelection PivotSelection, clique []Vertex, candidates, excluded util.VertexSet[Vertex, struct{}]) {
 	if len(candidates) == 1 {
 		for v := range candidates {
 			// Same logic as below, stripped down
 			neighbours := graph.Edged(v)
-			if excluded.IsDisjoint(neighbours) {
+			if util.IsDisjoint(excluded, neighbours) {
 				fmt.Println(append(clique, v))
 				reporter.Record(append(clique, v))
 			}
@@ -369,10 +376,11 @@ func visit(graph *ProductGraph, reporter Reporter, pivotSelection PivotSelection
 	seenLocalDegree := 0
 	for v := range candidates {
 		neighbours := graph.Edged(v)
-		localDegree := neighbours.IntersectionLen(candidates)
+
+		localDegree := util.IntersectionLen(neighbours, candidates)
 		if localDegree == 0 {
 			// Same logic as below, stripped down
-			if neighbours.IsDisjoint(excluded) {
+			if util.IsDisjoint(neighbours, excluded) {
 				fmt.Println(append(clique, v))
 				reporter.Record(append(clique, v))
 			}
@@ -390,7 +398,8 @@ func visit(graph *ProductGraph, reporter Reporter, pivotSelection PivotSelection
 	if pivotSelection == MaxDegreeLocalX {
 		for v := range excluded {
 			neighbours := graph.Edged(v)
-			localDegree := neighbours.IntersectionLen(candidates)
+			localDegree := util.IntersectionLen(neighbours, candidates)
+
 			if seenLocalDegree < localDegree {
 				seenLocalDegree = localDegree
 				pivot = v
@@ -400,13 +409,15 @@ func visit(graph *ProductGraph, reporter Reporter, pivotSelection PivotSelection
 
 	for _, v := range remainingCandidates {
 		neighbours := graph.Edged(v)
-		if neighbours.Contains(pivot) {
+		if util.Contains(neighbours, pivot) {
 			continue
 		}
-		candidates.Remove(v)
-		neighbouringCandidates := neighbours.Intersection(candidates)
-		if !neighbouringCandidates.IsEmpty() {
-			neighbouringExcluded := neighbours.Intersection(excluded)
+		util.Remove(candidates, v)
+		// candidates.Remove(v)
+
+		neighbouringCandidates := util.Intersection(neighbours, candidates)
+		if !util.IsEmpty(neighbouringCandidates) {
+			neighbouringExcluded := util.Intersection(neighbours, excluded)
 			visit(
 				graph, reporter,
 				pivotSelection,
@@ -414,12 +425,13 @@ func visit(graph *ProductGraph, reporter Reporter, pivotSelection PivotSelection
 				neighbouringCandidates,
 				neighbouringExcluded)
 		} else {
-			if neighbours.IsDisjoint(excluded) {
+			if util.IsDisjoint(neighbours, excluded) {
 				fmt.Println(append(clique, v))
 				reporter.Record(append(clique, v))
 			}
 		}
-		excluded.Add(v)
+		util.Add(excluded, v)
+		// excluded.Add(v)
 	}
 }
 

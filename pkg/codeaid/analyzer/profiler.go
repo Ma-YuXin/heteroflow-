@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"heterflow/pkg/codeaid/assemblyslicer"
 	"heterflow/pkg/codeaid/graph"
+	"heterflow/pkg/codeaid/util"
+	"math"
 )
 
 var (
@@ -11,17 +13,18 @@ var (
 )
 
 func Similarity() float64 {
-	// config := assemblyslicer.NewConfig()
-	// config.SegmentFile("/mnt/data/nfs/myx/tmp/heterflow-dis-intel")
+	// config.Process("/mnt/data/nfs/myx/heterflow/cmd/codeaid/main")
+	// config1 := assemblyslicer.NewConfig()
+	// config1.SegmentFile("/mnt/data/nfs/myx/tmp/dis-intel/nginx-1.25.5")
 
 	// config2 := assemblyslicer.NewConfig()
-	// config2.SegmentFile("/mnt/data/nfs/myx/tmp/nginx-dis-intel")
+	// config2.SegmentFile("/mnt/data/nfs/myx/tmp/dis-intel/nginx-1.26.0")
 	// var err error
-	// err = assemblyslicer.WriteJSONFile("/mnt/data/nfs/myx/heterflow/cmd/codeaid/heterflow.json", config)
+	// err = assemblyslicer.WriteJSONFile("/mnt/data/nfs/myx/tmp/bin/nginx-1.25.5.json", config1)
 	// if err != nil {
 	// 	fmt.Println(err)
 	// }
-	// err = assemblyslicer.WriteJSONFile("/mnt/data/nfs/myx/heterflow/cmd/codeaid/nginx.json", config2)
+	// err = assemblyslicer.WriteJSONFile("/mnt/data/nfs/myx/tmp/bin/nginx-1.26.0.json", config2)
 	// if err != nil {
 	// 	fmt.Println(err)
 	// }
@@ -37,18 +40,39 @@ func Similarity() float64 {
 	// 	panic(err)
 	// }
 	// return calculate(filesimilarity, cfwsimilarity)
-	config1, config2 := getConfig()
-	gk1 := graph.NewGraphKernels(config1.Graph, 3)
+
+	config1 := FetchConfig("/mnt/data/nfs/myx/tmp/json/nginx-1.25.json")
+	config2 := FetchConfig("/mnt/data/nfs/myx/tmp/json/nginx-1.26.json")
+	config3 := FetchConfig("/mnt/data/nfs/myx/tmp/json/main.json")
+	gk1 := graph.NewGraphKernels(config1.Graph, 2)
 	t1 := gk1.Iterator()
 	sv1 := t1.Injection()
-	gk2 := graph.NewGraphKernels(config2.Graph, 3)
+	gk2 := graph.NewGraphKernels(config2.Graph, 2)
 	t2 := gk2.Iterator()
 	sv2 := t2.Injection()
+	gk3 := graph.NewGraphKernels(config3.Graph, 2)
+	t3 := gk3.Iterator()
+	sv3 := t3.Injection()
 	ans, err := sv1.InnerProduct(sv2)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(ans)
+	fmt.Println("nginx-1.25.5 nginx-1.26.0", ans)
+	ans, err = sv2.InnerProduct(sv3)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("nginx-1.26.0 heterflow", ans)
+	ans, err = sv1.InnerProduct(sv3)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("nginx-1.25.5 heterflow", ans)
+	ans, err = sv1.InnerProduct(sv1)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("nginx-1.25.5 nginx-1.25.5", ans)
 	return 0.0
 }
 func calculate(filesimilarity, cfwsimilarity float64) float64 {
@@ -60,22 +84,30 @@ func calculateWeightedSum(a, b, wa, wb float64) float64 {
 	return a*wa + b*wb
 }
 
-func proSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) (float64, error) {
+func programSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) (float64, error) {
 	cos, err := graph.CosineSimilarity(config1.FileFeatures, config2.FileFeatures)
-	fmt.Println("CosineSimilarity ", cos, err)
+	if err != nil {
+		fmt.Println(err)
+	}
 	pear, err := graph.Pearson(config1.FileFeatures, config2.FileFeatures)
-	fmt.Println("Pearson ", pear, err)
-
+	if err != nil {
+		fmt.Println(err)
+	}
+	itslen := util.IntersectionLen(config1.DynamicLib, config2.DynamicLib)
+	c1percent := float64(len(config1.DynamicLib)) / float64(itslen)
+	c2percent := float64(len(config2.DynamicLib)) / float64(itslen)
+	dymiclibsimilarity := 1 / (math.Abs(c1percent-c2percent) + 1)
+	fmt.Println("Pearson ", pear, "CosineSimilarity ", cos, "dymiclibsimilarity", dymiclibsimilarity)
 	return pear, nil
 }
 
-func cfwSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) (float64, error) {
+func CFGSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) (float64, error) {
 	pg := graph.NewProductGraph(config1.Graph, config2.Graph)
 	candidates := pg.AllConnectedVertices()
-	if candidates.IsEmpty() {
+	if util.IsEmpty(candidates) {
 		return 0.0, fmt.Errorf("no connected vertics")
 	}
-	excluded := make(graph.VertexSet, len(candidates))
+	excluded := make(util.VertexSet[graph.Vertex, struct{}], len(candidates))
 	reporter := graph.NewRepoter(graph.MaxReporter)
 	// graph.BronKerbosch2aGP(pg, reporter)
 	// graph.BronKerbosch2(pg, reporter, nil, candidates, excluded)
@@ -84,42 +116,10 @@ func cfwSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Confi
 	return res2, nil
 }
 
-func getConfig() (*assemblyslicer.Config, *assemblyslicer.Config) {
-	// config := assemblyslicer.NewConfig()
-	// //读取并分析文件
-	// config.SegmentFile("/mnt/data/nfs/myx/tmp/heterflow-dis-intel")
-
-	// config2 := assemblyslicer.NewConfig()
-	// config2.SegmentFile("/mnt/data/nfs/myx/tmp/nginx-dis-intel")
-
-	// var err error
-	// // 写入文件
-	// err = assemblyslicer.WriteJSONFile("/mnt/data/nfs/myx/heterflow/cmd/codeaid/heterflow.json", config)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// err = assemblyslicer.WriteJSONFile("/mnt/data/nfs/myx/heterflow/cmd/codeaid/nginx.json", config2)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// 从文件中读取结构体
-
-	config1, err := assemblyslicer.ReadJSONFile("/mnt/data/nfs/myx/heterflow/cmd/codeaid/heterflow.json")
+func FetchConfig(file string) *assemblyslicer.Config {
+	config, err := assemblyslicer.ReadJSONFile(file)
 	if err != nil {
 		fmt.Println(err)
 	}
-	config2, err := assemblyslicer.ReadJSONFile("/mnt/data/nfs/myx/heterflow/cmd/codeaid/nginx.json")
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	// fmt.Println(config)
-	// fmt.Println("--------------------------------")
-	// for name, node := range config.Graph.Relation() {
-	// 	fmt.Println(name, *node)
-	// }
-	// for name, node := range config2.Graph.Relation() {
-	// 	fmt.Println(name, *node)
-	// }
-	return config1, config2
+	return config
 }

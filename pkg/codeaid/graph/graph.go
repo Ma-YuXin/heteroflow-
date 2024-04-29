@@ -104,18 +104,18 @@ func (g *UndirectedGraph) appendLinkInfo() {
 // 	return len(g.Relations)
 // }
 
-func TopK(m map[string]*Node, featureSelect func(Features) int, k int) map[Features]empty {
+func TopK(m map[string]*Node, featureSelect func(Features) int, k int) map[Features]struct{} {
 	if len(m) < k {
-		topk := make(map[Features]empty, k)
+		topk := make(map[Features]struct{}, k)
 		for _, value := range m {
-			topk[value] = empty{}
+			topk[value] = struct{}{}
 		}
 		return topk
 	}
 	return findTopKValues(m, featureSelect, k)
 }
 
-func findTopKValues(m map[string]*Node, featureSelect func(Features) int, k int) map[Features]empty {
+func findTopKValues(m map[string]*Node, featureSelect func(Features) int, k int) map[Features]struct{} {
 	type kv struct {
 		Key   string
 		Value int
@@ -130,9 +130,9 @@ func findTopKValues(m map[string]*Node, featureSelect func(Features) int, k int)
 		return ss[i].Value > ss[j].Value // 降序排序
 	})
 
-	topK := make(map[Features]empty, k)
+	topK := make(map[Features]struct{}, k)
 	for i := 0; i < k; i++ {
-		topK[m[ss[i].Key]] = empty{}
+		topK[m[ss[i].Key]] = struct{}{}
 	}
 
 	return topK

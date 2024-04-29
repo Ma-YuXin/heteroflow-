@@ -2,12 +2,17 @@ package graph
 
 import (
 	"errors"
+	"fmt"
 	"math"
+	"strconv"
 )
 
 const (
-	defaultIteratorTimes = 3
-	metricsNum           = 11
+	FixedIntervalType IntervalType = iota
+	DecreaseIntervalType
+	defaultIteratorTimes         = 2
+	metricsNum                   = 11
+	divideBase           float64 = 3
 )
 
 type Mapping[T any] interface {
@@ -19,7 +24,7 @@ type Transform struct {
 	nodeVector        NodeVectors
 	maximum           Vector
 	minimum           Vector
-	interval          Vector
+	interval          Interval
 	divideHierarchies []int
 	// vector            StatisticalVectors
 }
@@ -27,7 +32,16 @@ type Transform struct {
 type NodeVectors map[string]Vector
 
 type Vector []float64
-type StatisticalVectors []int
+
+type StatisticalVectors interface {
+	InnerProduct(StatisticalVectors) (float64, error)
+	Insert(int)
+	At(int) (float64, error)
+}
+
+type MapStatisticalVector map[int]float64
+
+type SliceStatisticalVector []float64
 
 type AggregatedFeature = Programmer
 
@@ -42,10 +56,108 @@ type GraphKernels struct {
 	adjacencies map[string]value
 }
 
-func NewTransfrm() Transform {
-	hierarchies := []int{6, 3, 1, 3, 3, 3, 4, 2, 1, 3, 4}
+type IntervalType int
 
+type Interval interface {
+	Buckets() int
+	Hash(Vector) int
+}
+
+type FixedInterval struct {
+	tran      *Transform
+	intervals Vector
+	base      []int
+}
+type DecreaseInterval struct {
+	tran      *Transform
+	intervals []Vector
+	base      []int
+}
+
+func NewMapStatisticalVector(hint int) MapStatisticalVector {
+	if hint < 4 {
+		hint = 4
+	}
+	return make(MapStatisticalVector, hint>>2)
+}
+
+func NewSliceStatisticalVector(hint int) SliceStatisticalVector {
+	return make(SliceStatisticalVector, hint)
+}
+func NewFixedInterval(t *Transform) *FixedInterval {
+	maximum := t.maximum
+	minimum := t.minimum
+	divideHierarchies := t.divideHierarchies
+	base := make([]int, metricsNum)
+	base[0] = 1
+	for i := 1; i < metricsNum; i++ {
+		base[i] = divideHierarchies[i-1] * base[i-1]
+		// fmt.Println("base[i]: ", base[i], tran.divideHierarchies[i-1])
+	}
+	interval := make(Vector, metricsNum)
+	for i, v := range maximum {
+		if minimum[i] == math.MaxFloat64 && maximum[i] == 0 {
+			interval[i] = 0
+		} else {
+			interval[i] = (v - minimum[i]) / float64(divideHierarchies[i])
+		}
+	}
+	return &FixedInterval{tran: t, intervals: interval, base: base}
+}
+
+func NewDecreaseInterval(t *Transform) *DecreaseInterval {
+	maximum := t.maximum
+	minimum := t.minimum
+	divideHierarchies := t.divideHierarchies
+	base := make([]int, metricsNum)
+	base[0] = 1
+	for i := 1; i < metricsNum; i++ {
+		base[i] = divideHierarchies[i-1] * base[i-1]
+		// fmt.Println("base[i]: ", base[i], tran.divideHierarchies[i-1])
+	}
+	interval := make([]Vector, metricsNum)
+	for i, v := range maximum {
+		vec := make(Vector, 0, divideHierarchies[i])
+		if minimum[i] == math.MaxFloat64 && maximum[i] == 0 {
+			vec = append(vec, 0)
+		} else {
+			total := (math.Pow(divideBase, float64(divideHierarchies[i])) - 1) / (divideBase - 1)
+			dif := v - minimum[i]
+			spac := dif / total
+			for num := 0; num < divideHierarchies[i]; num++ {
+				copies := math.Pow(divideBase, float64(num))
+				vec = append(vec, copies*spac)
+			}
+			vec[len(vec)-1] = v
+			// total := (1 << (divideHierarchies[i])) - 1
+			// dif := v - minimum[i]
+			// spac := dif / float64(total)
+			// for num := 0; num < divideHierarchies[i]; num++ {
+			// 	copies := 1 << num
+			// 	vec = append(vec, float64(copies)*spac)
+			// }
+			// vec[len(vec)-1] = v
+		}
+		interval[i] = vec
+	}
+	return &DecreaseInterval{tran: t, intervals: interval, base: base}
+}
+
+func NewTransfrm() Transform {
+	// hierarchies := []int{6, 3, 1, 3, 3, 3, 4, 2, 1, 3, 4}
+	hierarchies := []int{12, 6, 2, 6, 6, 6, 8, 4, 2, 6, 4}
 	return Transform{divideHierarchies: hierarchies}
+}
+
+func NewInterval(it IntervalType, t *Transform) Interval {
+	switch it {
+	case FixedIntervalType:
+		return NewFixedInterval(t)
+	case DecreaseIntervalType:
+		return NewDecreaseInterval(t)
+	default:
+		return nil
+	}
 }
 
 func NewValue(deg int, node *Node) value {
@@ -114,16 +226,15 @@ func (gk *GraphKernels) Normalization() Transform {
 	for _, v := range gk.adjacencies {
 		sum.AddValue(v)
 	}
-	res := NewTransfrm()
+
 	nv := make(NodeVectors, len(gk.adjacencies))
-	minimum, maximum, interval := make(Vector, metricsNum), make(Vector, metricsNum), make(Vector, metricsNum)
+	minimum, maximum := make(Vector, metricsNum), make(Vector, metricsNum)
 	for i := range minimum {
 		minimum[i] = math.MaxFloat64
 	}
 	// fmt.Printf("%f %+v\n", sum.degree, sum.feature)
 	for k, v := range gk.adjacencies {
 		// fmt.Printf("%f %+v\n\n", v.degree, v.feature)
-
 		vec := make(Vector, 0, metricsNum)
 		feat := append(v.feature.Features(), int(v.degree))
 		sumfeat := append(sum.feature.Features(), int(sum.degree))
@@ -143,39 +254,25 @@ func (gk *GraphKernels) Normalization() Transform {
 		nv[k] = vec
 	}
 	// fmt.Println(minimum, maximum)
-	for i, v := range maximum {
-		if minimum[i] == math.MaxFloat64 && maximum[i] == 0 {
-			interval[i] = 0
-		} else {
-			interval[i] = (v - minimum[i]) / float64(res.divideHierarchies[i])
-		}
-	}
+	res := NewTransfrm()
 	res.nodeVector = nv
 	res.maximum = maximum
 	res.minimum = minimum
+	interval := NewInterval(DecreaseIntervalType, &res)
 	res.interval = interval
 	return res
 }
 
 func (tran *Transform) Injection() StatisticalVectors {
-	lenth := 1
-	// fmt.Println(tran.divideHierarchies)
-	for _, v := range tran.divideHierarchies {
-		lenth *= (v + 1)
-	}
-	// fmt.Println(lenth)
 
-	res := make(StatisticalVectors, lenth)
+	// fmt.Println(lenth)
+	lenth := tran.interval.Buckets()
+	res := NewMapStatisticalVector(lenth)
 	// fmt.Println(len(tran.vector))
-	base := make([]int, metricsNum)
-	base[0] = 1
-	for i := 1; i < metricsNum; i++ {
-		base[i] = tran.divideHierarchies[i-1] * base[i-1]
-		// fmt.Println("base[i]: ", base[i], tran.divideHierarchies[i-1])
-	}
+
 	for _, vector := range tran.nodeVector {
-		idx := hash(tran.minimum, tran.interval, vector, base)
-		// fmt.Printf("%d ", idx)
+		idx := tran.interval.Hash(vector)
+		fmt.Printf("%d ", idx)
 		if idx == 0 {
 			// fmt.Println()
 			// fmt.Println("vector", vector)
@@ -186,33 +283,114 @@ func (tran *Transform) Injection() StatisticalVectors {
 		}
 		res[idx]++
 	}
+	fmt.Println("\n")
 	return res
 }
 
-func hash(minimum, interval, vector Vector, base []int) int {
+func (f *FixedInterval) Buckets() int {
+	length := 1
+	// fmt.Println(tran.divideHierarchies)
+	for _, v := range f.tran.divideHierarchies {
+		length *= (v + 1)
+	}
+	return length
+}
+
+func (f *FixedInterval) Hash(vector Vector) int {
 	idx := 0
-	// fmt.Println("+++++++++++++++++++++++++++++")
 	for pos, val := range vector {
-		dif := val - minimum[pos]
-		if interval[pos] != 0 {
-			mul := int(dif / interval[pos])
-			idx += mul * base[pos]
+		dif := val - f.tran.minimum[pos]
+		// if dif < 0 && val != 0 {
+		// 	fmt.Println(dif)
+		// }
+		if f.intervals[pos] != 0 {
+			mul := int(dif / f.intervals[pos])
+			idx += mul * f.base[pos]
 			// fmt.Println("idx: ", idx, "val: ", val, "minval:", minimum[pos], "dif: ", dif, "interval[", pos, "] ", interval[pos], "mul: ", mul, "base", base[pos])
 		}
 		//  else {
 		// fmt.Println("interval is zero ", idx, dif, interval[pos])		// }
 	}
-	// fmt.Println("+++++++++++++++++++++++++++++")
 	return idx
 }
 
-func (sv StatisticalVectors) InnerProduct(another StatisticalVectors) (sum int, err error) {
-	if len(sv) != len(another) {
-		err = errors.New("len of two vector is different")
-		return
+func (d *DecreaseInterval) Buckets() int {
+	length := 1
+	// fmt.Println(tran.divideHierarchies)
+	for _, v := range d.tran.divideHierarchies {
+		length *= v
 	}
+	return length
+}
+
+func (d *DecreaseInterval) Hash(vector Vector) int {
+	idx := 0
+	for pos, val := range vector {
+		dif := val - d.tran.minimum[pos]
+		mul := d.bsearch(pos, dif)
+		idx += mul * d.base[pos]
+	}
+	return idx
+}
+
+func (d *DecreaseInterval) bsearch(pos int, val float64) int {
+	inter := d.intervals[pos]
+	left, right := 0, len(inter)-1
+	for left <= right {
+		mid := (left + right) >> 1
+		if inter[mid] >= val {
+			right = mid - 1
+		} else {
+			left = mid + 1
+		}
+	}
+	return left
+}
+
+func (sv SliceStatisticalVector) InnerProduct(another StatisticalVectors) (sum float64, err error) {
 	for i, v := range sv {
-		sum += (v * another[i])
+		va, err := another.At(i)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		sum += (v * va)
 	}
 	return
+}
+
+func (sv SliceStatisticalVector) At(pos int) (sum float64, err error) {
+	if pos > len(sv) {
+		return 0, errors.New("pos greater than sv's length")
+	}
+	return sv[pos], nil
+}
+
+func (sv SliceStatisticalVector) Insert(pos int) {
+	sv[pos]++
+}
+
+func (msv MapStatisticalVector) InnerProduct(another StatisticalVectors) (sum float64, err error) {
+	for k, v := range msv {
+		va, err := another.At(k)
+		if err != nil {
+			// fmt.Println(err)
+			continue
+		}
+
+		sum += 1 / (math.Abs(v-va) + 1)
+
+		// sum += (v * va)
+	}
+	return
+}
+
+func (msv MapStatisticalVector) Insert(pos int) {
+	msv[pos]++
+}
+func (msv MapStatisticalVector) At(pos int) (sum float64, err error) {
+	if v, ok := msv[pos]; ok {
+		return v, nil
+	}
+	return 0, errors.New(strconv.Itoa(pos) + "doesn't exist")
 }

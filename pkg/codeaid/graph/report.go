@@ -22,7 +22,7 @@ type Reporter interface {
 }
 
 type mapReporter struct {
-	store map[uint64]empty
+	store map[uint64]struct{}
 	collectingReporter
 }
 
@@ -42,7 +42,7 @@ func NewRepoter(class ReportType) Reporter {
 	switch class {
 	case MapReporter:
 		return &mapReporter{
-			store:              make(map[uint64]empty, 100),
+			store:              make(map[uint64]struct{}, 100),
 			collectingReporter: collectingReporter{make([][]Vertex, 0, 100)},
 		}
 	case CollectingReporter:
