@@ -2,44 +2,110 @@ package assemblyslicer
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"heterflow/pkg/codeaid/definition"
 	"heterflow/pkg/codeaid/graph"
-	"heterflow/pkg/codeaid/tools"
 	"heterflow/pkg/codeaid/util"
 	"heterflow/pkg/logger"
 	"io"
 	"os"
-	"time"
+	"os/exec"
 )
 
-var (
-	extract = IntelExtract{}
-)
+type encodedFeature struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+type encodedGraph struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+type configEncoded struct {
+	Feature    encodedFeature                   `json:"feature"`
+	Graph      encodedGraph                     `json:"graph"`
+	DynamicLib util.VertexSet[string, struct{}] `json:"dynamicLib"`
+}
 
 type Config struct {
 	Graph        graph.Graph
 	FileFeatures graph.Features
 	DynamicLib   util.VertexSet[string, struct{}]
+	Gpu          bool
 }
 
-func (c *Config) Process(filepath string) {
+var (
+	extract  = IntelExtract{}
+	cudaFunc = map[string]struct{}{
+		"cudaFree":   {},
+		"cudaMemcpy": {},
+		"cudaMalloc": {},
+	}
+)
+
+func Process(filepath string) *Config {
+	c := &Config{}
+	// fmt.Println("--------------------------------------------")
+	// fmt.Println(path, filename, basePath+"json/"+filename)
+	// fmt.Println("--------------------------------------------")
 	c.Graph = graph.NewGraph(graph.Undirected)
-	c.DynamicLib = DynamicLibs(filepath)
+	sharelib := SharedLibs(filepath)
+	syscall := SyscallAndLibs(filepath)
+	c.DynamicLib = util.UnionKey(syscall, sharelib)
+	// fmt.Println(c.DynamicLib)
 	path, filename := RedirctedassembleToFile(filepath)
 	c.SegmentFile(path)
-	err := WriteJSONFile("/mnt/data/nfs/myx/tmp/json/"+filename+".json", *c)
+	c.FileFeatures.AddInfo(filename)
+	c.Gpu = usedGPU(c, sharelib)
+	jsonpath := definition.BasePath + "json/" + filename
+	createDirIfNotExist(jsonpath)
+	err := WriteJSONFile(jsonpath, *c)
 	if err != nil {
 		fmt.Println(err)
 	}
+	return c
+}
+
+func usedGPU(c *Config, sharedlib util.VertexSet[string, string]) bool {
+	for _, path := range sharedlib {
+		if len(path) == 0 {
+			continue
+		}
+		// fmt.Println(path)
+		// buf.WriteString(path)
+		cmd := exec.Command("grep", "-Ec", definition.CudaFlags, path)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			// fmt.Println("error:", err)
+			continue
+		}
+		if !bytes.Equal(out, []byte("0\n")) {
+			fmt.Printf("%q", string(out))
+			// fmt.Println("out:", string(out), len(out))
+			fmt.Println(cmd.String())
+			return true
+		}
+	}
+	rel := c.Graph.Relation()
+	for k := range cudaFunc {
+		if _, ok := rel[k]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Config) SegmentFile(filepath string) {
-	start := time.Now()
+	// start := time.Now()
 	defer func() {
 		// fmt.Println("used action ", tools.UsedAction)
-		fmt.Println("missed action", tools.MissedAction)
-		fmt.Println("total time used", time.Since(start))
+		if len(MissedAction) != 0 {
+			fmt.Println("missed action", MissedAction)
+		}
+		// fmt.Println("total time used", time.Since(start))
 	}()
 	f, err := os.Open(filepath)
 	if err != nil {
@@ -47,7 +113,7 @@ func (c *Config) SegmentFile(filepath string) {
 	}
 	defer f.Close()
 	scan := bufio.NewScanner(f)
-	extract.removeleading(scan)
+
 	filefeature := c.readSegment(scan)
 	// root := c.build.GraphGraphFromRoot("main@@Base-0x50")
 	// c.build.AllFunctionName()
@@ -65,6 +131,7 @@ func (c *Config) SegmentFile(filepath string) {
 }
 
 func (c *Config) readSegment(scan *bufio.Scanner) graph.Features {
+	extract.removeleading(scan)
 	filefeature := graph.NewFeatures(graph.ProgrammerFeature)
 	for {
 		ff, isEnd := extract.segmentFeatures(scan)
@@ -180,20 +247,4 @@ func ReadJSONFile(filename string) (*Config, error) {
 		fmt.Println("unknown type ,can't to unmarsh", enc.Graph.Type)
 	}
 	return data, err
-}
-
-type encodedFeature struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
-}
-
-type encodedGraph struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
-}
-
-type configEncoded struct {
-	Feature    encodedFeature                   `json:"feature"`
-	Graph      encodedGraph                     `json:"graph"`
-	DynamicLib util.VertexSet[string, struct{}] `json:"dynamicLib"`
 }

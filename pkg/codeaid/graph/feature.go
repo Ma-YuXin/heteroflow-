@@ -6,18 +6,13 @@ import (
 
 type FeatureType int
 
-const (
-	ProgrammerFeature FeatureType = iota
-	FuncFeatures
-	Directedh GraphType = iota
-	Undirected
-)
-
 type Features interface {
+	//返回节点或者程序的特征，切片中第一个值要求是总特征数
 	Features() []int
 	Name() string
 	Nodes() map[string]Features
 	AddInfo(interface{})
+	DeepCopy() Features
 }
 
 type GraphType int
@@ -55,6 +50,13 @@ type Node struct {
 	flag                        bool
 }
 
+const (
+	ProgrammerFeature FeatureType = iota
+	FuncFeatures
+	Directedh GraphType = iota
+	Undirected
+)
+
 func NewFeatures(class FeatureType) Features {
 	switch class {
 	case ProgrammerFeature:
@@ -73,22 +75,57 @@ func NewFeatures(class FeatureType) Features {
 func (ff *Node) AddCallee(funcName string) {
 	ff.Callee[funcName] = nil
 }
+
 func (ff *Node) Nodes() map[string]Features {
 	return ff.Callee
 }
+
 func (ff *Node) Features() []int {
-	return []int{ff.TotalInstruction, ff.TransmissionInstruction, ff.IOInstruction, ff.ArithmeticInstruction, ff.LogicalInstruction, ff.StringInstruction, ff.ProgramTransferInstruction, ff.InterruptInstruction, ff.PseudoInstruction, ff.ProcessorControlInstruction}
+	return []int{ff.TotalInstruction, ff.TransmissionInstruction, ff.IOInstruction, ff.ArithmeticInstruction, ff.LogicalInstruction, ff.StringInstruction, ff.ProgramTransferInstruction, ff.InterruptInstruction, ff.PseudoInstruction, ff.ProcessorControlInstruction, ff.CalledTimes}
 }
 
 func (ff *Node) Name() string {
 	return ff.FuncName
 }
 
+func (ff *Node) DeepCopy() Features {
+	return &Node{
+		FuncName:                    ff.FuncName,
+		TotalInstruction:            ff.TotalInstruction,
+		TransmissionInstruction:     ff.TransmissionInstruction,
+		IOInstruction:               ff.IOInstruction,
+		ArithmeticInstruction:       ff.ArithmeticInstruction,
+		LogicalInstruction:          ff.LogicalInstruction,
+		StringInstruction:           ff.StringInstruction,
+		ProgramTransferInstruction:  ff.ProgramTransferInstruction,
+		InterruptInstruction:        ff.InterruptInstruction,
+		PseudoInstruction:           ff.PseudoInstruction,
+		ProcessorControlInstruction: ff.ProcessorControlInstruction,
+		OtherInstruction:            ff.OtherInstruction,
+		Callee:                      ff.Callee,
+		CalledTimes:                 ff.CalledTimes,
+		flag:                        ff.flag,
+	}
+}
+
 func (ff *Node) AddInfo(funcFeatures interface{}) {
-	if funcfeat, ok := funcFeatures.(string); ok {
+	if funcfeat, ok := funcFeatures.(*Node); ok {
+		ff.TotalInstruction += funcfeat.TotalInstruction
+		ff.TransmissionInstruction += funcfeat.TransmissionInstruction
+		ff.IOInstruction += funcfeat.IOInstruction
+		ff.ArithmeticInstruction += funcfeat.ArithmeticInstruction
+		ff.LogicalInstruction += funcfeat.LogicalInstruction
+		ff.StringInstruction += funcfeat.StringInstruction
+		ff.ProgramTransferInstruction += funcfeat.ProgramTransferInstruction
+		ff.InterruptInstruction += funcfeat.InterruptInstruction
+		ff.PseudoInstruction += funcfeat.PseudoInstruction
+		ff.ProcessorControlInstruction += funcfeat.ProcessorControlInstruction
+		ff.CalledTimes += funcfeat.CalledTimes
+	} else if funcfeat, ok := funcFeatures.(string); ok {
 		ff.FuncName = funcfeat
 	}
 }
+
 func (ff *Programmer) Features() []int {
 	return []int{ff.TotalInstruction, ff.TotalTransmissionInstruction, ff.TotalIOInstruction, ff.TotalArithmeticInstruction, ff.TotalLogicalInstruction, ff.TotalStringInstruction, ff.TotalProgramTransferInstruction, ff.TotalInterruptInstruction, ff.TotalPseudoInstruction, ff.TotalProcessorControlInstruction}
 }
@@ -128,5 +165,21 @@ func (ff *Programmer) AddInfo(funcFeatures interface{}) {
 		ff.TotalProcessorControlInstruction += funcfeat.TotalProcessorControlInstruction
 	} else {
 		logger.Error("can't add to Programmer Feature,the type is unfit ")
+	}
+}
+func (ff *Programmer) DeepCopy() Features {
+	return &Programmer{
+		ProgrammerName:                   ff.ProgrammerName,
+		TotalInstruction:                 ff.TotalInstruction,
+		TotalTransmissionInstruction:     ff.TotalTransmissionInstruction,
+		TotalIOInstruction:               ff.TotalIOInstruction,
+		TotalArithmeticInstruction:       ff.TotalArithmeticInstruction,
+		TotalLogicalInstruction:          ff.TotalLogicalInstruction,
+		TotalStringInstruction:           ff.TotalStringInstruction,
+		TotalProgramTransferInstruction:  ff.TotalProgramTransferInstruction,
+		TotalInterruptInstruction:        ff.TotalInterruptInstruction,
+		TotalPseudoInstruction:           ff.TotalPseudoInstruction,
+		TotalProcessorControlInstruction: ff.TotalProcessorControlInstruction,
+		ControlFlowGraphRoots:            ff.ControlFlowGraphRoots,
 	}
 }

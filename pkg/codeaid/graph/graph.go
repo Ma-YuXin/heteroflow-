@@ -1,10 +1,15 @@
 package graph
 
 import (
+	"fmt"
 	"heterflow/pkg/logger"
 	"sort"
 )
-
+type Vertex Pair
+type Pair struct {
+	Key   string
+	Value string
+}
 type Graph interface {
 	BuildGraph() map[string]*Node
 	Relation() map[string]*Node
@@ -13,7 +18,6 @@ type Graph interface {
 }
 type DirectedGraph struct {
 	Relations map[string]*Node
-	
 }
 
 type UndirectedGraph struct {
@@ -136,4 +140,52 @@ func findTopKValues(m map[string]*Node, featureSelect func(Features) int, k int)
 	}
 
 	return topK
+}
+func BFS(root Features) {
+	// for k, v := range b.Relations {
+	// 	fmt.Printf("%s %+v \n", k, v.Callee)
+	// }
+	// fmt.Println()
+	history := map[Features]struct{}{root: {}}
+	queue := []Features{root}
+	var last Features = root
+	for len(queue) != 0 {
+		cur := queue[0]
+		if cur != nil {
+			fmt.Printf("%s  ", cur.Name())
+			for _, v := range cur.Nodes() {
+				if _, ok := history[v]; !ok {
+					queue = append(queue, v)
+					history[v] = struct{}{}
+				}
+			}
+		}
+		if cur == last {
+			fmt.Println("\n--------------------------------------------------")
+			last = queue[len(queue)-1]
+		}
+		queue = queue[1:]
+	}
+}
+func buildGraph(g Graph) map[string]*Node {
+	children := make(map[string]bool)
+	Relations := g.Relation()
+	for _, parent := range Relations {
+		for childName := range parent.Callee {
+			if _, exits := Relations[childName]; !exits {
+				logger.Error("child " + childName + " is not found")
+			}
+			parent.Callee[childName] = Relations[childName]
+			if childName != parent.FuncName {
+				children[childName] = true
+			}
+		}
+	}
+	roots := make(map[string]*Node)
+	for name, node := range Relations {
+		if !children[name] {
+			roots[name] = node
+		}
+	}
+	return roots
 }
