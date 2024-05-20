@@ -1,17 +1,15 @@
-package assemblyslicer
+package slicer
 
 import (
 	"bytes"
 	"fmt"
-	"heterflow/pkg/codeaid/definition"
+	"heterflow/pkg/codeaid/def"
 	"heterflow/pkg/codeaid/util"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
-func SyscallAndLibs(filePath string) util.VertexSet[string, struct{}] {
+func syscallAndLibs(filePath string) util.VertexSet[string, struct{}] {
 	cmd := exec.Command("bash", "-c", "nm -D "+filePath)
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
@@ -38,8 +36,8 @@ func SyscallAndLibs(filePath string) util.VertexSet[string, struct{}] {
 	return res
 }
 
-func SharedLibs(filePath string) util.VertexSet[string, string] {
-	cmd := exec.Command("bash", "-c", definition.CommendOfSharedLibs+filePath)
+func sharedLibs(filePath string) util.VertexSet[string, string] {
+	cmd := exec.Command("bash", "-c", def.CommendOfSharedLibs+filePath)
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
 	cmd.Stderr = &stderr
@@ -78,46 +76,4 @@ func SharedLibs(filePath string) util.VertexSet[string, string] {
 	// 	fmt.Println(k, v)
 	// }
 	return res
-}
-
-func createDirIfNotExist(path string) error {
-	dir := filepath.Dir(path)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		err := os.MkdirAll(dir, os.ModePerm)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// 将指定路径的二进制文件反汇编并将汇编代码写入到指定文件夹中
-func RedirctedassembleToFile(path string) (string, string) {
-	// filenameWithExt := filepath.Base(path)
-	// dir := filepath.Dir(path)
-	// filename := strings.TrimSuffix(filenameWithExt, filepath.Ext(filenameWithExt))
-	filename, ok := strings.CutPrefix(path, definition.BinaryFilePathPrefix)
-	if !ok {
-		// fmt.Println("base is wrong")
-		// return "", ""
-	}
-	outpath := definition.BasePath + "assem/" + filename
-	cmd := exec.Command("bash", "-c", definition.CommendOfDisassembly+path)
-	err := createDirIfNotExist(outpath)
-	if err != nil {
-		fmt.Println(err)
-	}
-	outputFile, err := os.OpenFile(outpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
-	if err != nil {
-		panic(err)
-	}
-	defer outputFile.Close()
-	// 将命令的输出和错误重定向到文件
-	cmd.Stdout = outputFile
-	cmd.Stderr = outputFile
-	// 执行命令
-	if err := cmd.Run(); err != nil {
-		fmt.Println(err)
-	}
-	return outpath, filename
 }

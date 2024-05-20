@@ -3,107 +3,189 @@ package analyzer
 import (
 	"errors"
 	"fmt"
-	"heterflow/pkg/codeaid/assemblyslicer"
-	"heterflow/pkg/codeaid/definition"
-	"heterflow/pkg/codeaid/graph"
+	"heterflow/pkg/codeaid/def"
+	"heterflow/pkg/codeaid/slicer"
 	"heterflow/pkg/codeaid/util"
-	"math"
+	"os"
+	"path/filepath"
+	"sync"
 )
 
-var (
-	maxTotalInstDiff = 1000000
-	wig              = []float64{1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0}
-)
+// 定义一个函数类型，用于处理文件
+type fileProcessor func(pro interface{}, path string) float64
 
-// 将已经处理好的一个程序（也就是刚提交的那一个），与pro2去对比，pro2将从proJsonPath文件反序列化出来
-func Similarity(config1 *assemblyslicer.Config, proJsonPath string) float64 {
-	// prepare.PrepareAlljsonFiles("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86")
-	// config1 := FetchConfig("/mnt/data/nfs/myx/tmp/json/nginx-1.25.json")
-	// config2 := FetchConfig("/mnt/data/nfs/myx/tmp/json/nginx-1.26.json")
-	config2 := FetchConfig(proJsonPath)
-	prosim := programmerSimilarity(config1, config2)
-	libsim := libSimilarity(config1, config2)
-	cfwsim := cfwSimilarity(config1, config2)
+// 用来帮助在maxchan管道中传递数据
+type value struct {
+	num  float64
+	name string
+}
+
+// 将已经处理好的一个程序（也就是刚提交的那一个），与pro去对比，pro将从proJsonPath文件反序列化出来
+func SimilarityByCalculator(cal interface{}, proJsonPath string) float64 {
+	calculator1 := cal.(*slicer.Calculator)
+	calculator2 := slicer.FetchCalculator(proJsonPath)
+	// fmt.Println(calculator2.Vector)
+	prosim := programmerSimilarity(calculator1, calculator2)
+	if def.Debug {
+		fmt.Println("successfully arrive prosim")
+	}
+	libsim := libSimilarity(calculator1, calculator2)
+	if def.Debug {
+		fmt.Println("successfully arrive libsim")
+	}
+	cfwsim := cfwSimilarity(calculator1, calculator2)
+	if def.Debug {
+		fmt.Println("successfully arrive cfwsim")
+	}
 	vec := []float64{prosim, libsim, cfwsim}
-	sim, err := calculateWeightedSum(vec, wig)
+	sim, err := calculateWeightedSum(vec, def.Weight)
 	if err != nil {
 		fmt.Println(err)
 	}
-	// fmt.Println(config1.FileFeatures.Name(), proJsonPath, "cfwsim", cfwsim, "libsim", libsim, "prosim", prosim, "sim", sim)
-	fmt.Printf("%-70v %-100v %-7v %-17v %-7v %-17v %-7v %-17v %-5v %-17v\n", config1.FileFeatures.Name(), proJsonPath, "cfwsim", cfwsim, "libsim", libsim, "prosim", prosim, "sim", sim)
-	if config1.Gpu != config2.Gpu {
-		sim *= definition.PercentageDecline
+	// fmt.Println(calculator1.FileFeatures.Name(), proJsonPath)
+	// fmt.Printf("%-7v %-20v %-7v %-20v %-7v %-20v %-5v %-20v\n", "cfwsim", cfwsim, "libsim", libsim, "prosim", prosim, "sim", sim)
+	if calculator1.Gpu != calculator2.Gpu {
+		sim *= def.PercentageDecline
 	}
 	return sim
 }
 
-func programmerSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) float64 {
-	// cos, err := util.CosineSimilarity(config1.FileFeatures.Features(), config2.FileFeatures.Features())
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// pear, err := util.Pearson(config1.FileFeatures.Features(), config1.FileFeatures.Features())
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	f1 := config1.FileFeatures.Features()
-	f2 := config2.FileFeatures.Features()
-	length := len(f1)
-	ratio1 := make([]float64, length)
-	ratio2 := make([]float64, length)
-	total1 := f1[0]
-	total2 := f2[0]
-	for i := 0; i < length; i++ {
-		ratio1[i] = float64(f1[i]) / float64(total1)
-		ratio2[i] = float64(f2[i]) / float64(total2)
+// 将已经序列化为json的程序，与pro去对比，pro将从proJsonPath文件反序列化出来
+func SimilarityByJson(proJsonPath1 interface{}, proJsonPath2 string) float64 {
+	p1, _ := proJsonPath1.(string)
+	calculator1 := slicer.FetchCalculator(p1)
+	calculator2 := slicer.FetchCalculator(proJsonPath2)
+	prosim := programmerSimilarity(calculator1, calculator2)
+	libsim := libSimilarity(calculator1, calculator2)
+	cfwsim := cfwSimilarity(calculator1, calculator2)
+	vec := []float64{prosim, libsim, cfwsim}
+	sim, err := calculateWeightedSum(vec, def.Weight)
+	if err != nil {
+		fmt.Println(err)
 	}
-	sim := 0.0
-	for i := 0; i < length; i++ {
-		// fmt.Println(sim)
-		sim += 1 / (math.Abs(ratio1[i]-ratio2[i]) + definition.Delta)
+	// fmt.Println(calculator1.FileFeatures.Name(), proJsonPath2)
+	// fmt.Printf("%-7v %-20v %-7v %-20v %-7v %-20v %-5v %-20v\n", "cfwsim", cfwsim, "libsim", libsim, "prosim", prosim, "sim", sim)
+	if calculator1.Gpu != calculator2.Gpu {
+		sim *= def.PercentageDecline
 	}
-	// fmt.Println("Pearson ", pear, "CosineSimilarity ", cos, "Sim", sim)
-	sim = sim / (float64(length) * (1 / definition.Delta))
 	return sim
 }
 
-func libSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) float64 {
-	itslen := util.IntersectionLen(config1.DynamicLib, config2.DynamicLib)
+func maxSim(maxchan chan value) string {
+	mostSimilarity := ""
+	nowMax := 0.0
+	for v := range maxchan {
+		if v.num > nowMax {
+			nowMax = v.num
+			mostSimilarity = v.name
+		}
+		if v.num > 0.9 {
+			fmt.Println(v.num, v.name)
+		}
+	}
+	return mostSimilarity
+}
+
+// 处理文件的通用函数
+func processFiles(pro interface{}, maxchan chan value, processor fileProcessor) error {
+	defer close(maxchan)
+	sem := make(chan struct{}, def.MaxGoroutines)
+	err := filepath.Walk(def.JsonDatabase, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("访问文件/目录%s时出错: %v\n", path, err)
+			return err
+		}
+		if !info.IsDir() {
+			sem <- struct{}{}
+			go func() {
+				defer func() { <-sem }() // 释放槽位
+				sim := processor(pro, path)
+				if err != nil {
+					fmt.Printf("处理文件%s时出错: %v\n", path, err)
+					return
+				}
+				maxchan <- value{
+					num:  sim,
+					name: path,
+				}
+			}()
+		}
+		return nil
+	})
+	return err
+}
+
+// 将pro与json库中的程序做对比，找出最相似的那个,这里的pro是指已经序列化好的程序json路径
+func MostSimilarProgramerByJson(pro string) string {
+	maxchan := make(chan value, def.MaxGoroutines)
+	go func() {
+		err := processFiles(pro, maxchan, SimilarityByJson)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return maxSim(maxchan)
+}
+
+// 将pro与json库中的程序做对比，找出最相似的那个,这里的pro是指二进制程序的路径
+func MostSimilarProgramerByBinary(pro string) string {
+	proCalculator := slicer.Process(pro)
+	maxchan := make(chan value, def.MaxGoroutines)
+	go func() {
+		err := processFiles(proCalculator, maxchan, SimilarityByCalculator)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return maxSim(maxchan)
+}
+
+func programmerSimilarity(calculator1 *slicer.Calculator, calculator2 *slicer.Calculator) float64 {
+	// cos, err := util.CosineSimilarity(calculator1.FileFeatures.Features(), calculator2.FileFeatures.Features())
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// pear, err := util.Pearson(calculator1.FileFeatures.Features(), calculator1.FileFeatures.Features())
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	ar, err := util.VectorApproximationRate(calculator1.FileFeatures.Features(), calculator2.FileFeatures.Features())
+	if err != nil {
+		fmt.Println(err)
+	}
+	t1 := calculator1.FileFeatures.Features()[0]
+	t2 := calculator2.FileFeatures.Features()[0]
+	dim := util.Absdif(t1, t2)
+	tir := 1 - float64(dim)/def.MaxTotalInstDiff
+	if tir < 0 {
+		tir = 0
+	}
+	// fmt.Println("dim", dim, "tir", tir)
+	return def.TotalInstWeight*tir + def.ProgramFeatureWeight*ar
+}
+
+func libSimilarity(calculator1 *slicer.Calculator, calculator2 *slicer.Calculator) float64 {
+	itslen := util.IntersectionLen(calculator1.DynamicLib, calculator2.DynamicLib)
 	var dymiclibsimilarity float64
 	if itslen != 0 {
-		c1percent := float64(len(config1.DynamicLib)) / float64(itslen)
-		c2percent := float64(len(config2.DynamicLib)) / float64(itslen)
+		c1percent := float64(len(calculator1.DynamicLib)) / float64(itslen)
+		c2percent := float64(len(calculator2.DynamicLib)) / float64(itslen)
 		// fmt.Println(itslen, c1percent, c2percent)
-		dymiclibsimilarity = 1 / (math.Abs(c1percent-c2percent) + 1)
+		dymiclibsimilarity = 1 / (util.Absdif(c1percent, c2percent) + 1)
 	}
 	return dymiclibsimilarity
 }
 
-func cfwSimilarity(config1, config2 *assemblyslicer.Config) float64 {
-	gk1 := graph.NewGraphKernels(config1.Graph, 2)
-	t1 := gk1.Iterator()
-	sv1 := t1.Injection()
-	gk2 := graph.NewGraphKernels(config2.Graph, 2)
-	t2 := gk2.Iterator()
-	sv2 := t2.Injection()
+func cfwSimilarity(calculator1, calculator2 *slicer.Calculator) float64 {
+	sv1 := calculator1.Vector
+	sv2 := calculator2.Vector
 	ans, err := sv1.InnerProduct(sv2)
 	if err != nil {
 		fmt.Println(err)
 	}
-	max := 0.0
-	sv1.ForEach(func(pos int, val float64) {
-		v, err := sv2.At(pos)
-		if err != nil {
-			// fmt.Println(err)
-			return
-		}
-		if math.Abs(val-v) > max {
-			max = math.Abs(val - v)
-		}
-	})
-	// fmt.Printf("%f ", max)
-	// fmt.Println(config1.FileFeatures.Name(), config2.FileFeatures.Name(), "inner Production", ans)
-	// fmt.Println()
+	if def.Debug {
+		fmt.Println("successfully get ans")
+	}
 	return ans
 }
 
@@ -117,25 +199,29 @@ func calculateWeightedSum(vec, weight []float64) (sum float64, err error) {
 	return
 }
 
-func FetchConfig(file string) *assemblyslicer.Config {
-	config, err := assemblyslicer.ReadJSONFile(file)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return config
-}
+func PreprocessAssemblyFiles(root string) {
+	// 使用带缓冲区的通道来限制并发数量
+	sem := make(chan struct{}, 16)
+	var wg sync.WaitGroup
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("访问文件/目录%s时出错: %v\n", path, err)
+			return err
+		}
+		if !info.IsDir() {
+			wg.Add(1)
+			sem <- struct{}{}
+			go func() {
+				defer wg.Done()
+				defer func() { <-sem }() // 释放槽位
+				fmt.Println(path)
+				slicer.Process(path)
+			}()
 
-// func CFGSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) (float64, error) {
-// 	pg := graph.NewProductGraph(config1.Graph, config2.Graph)
-// 	candidates := pg.AllConnectedVertices()
-// 	if util.IsEmpty(candidates) {
-// 		return 0.0, fmt.Errorf("no connected vertics")
-// 	}
-// 	excluded := make(util.VertexSet[graph.Vertex, struct{}], len(candidates))
-// 	reporter := graph.NewRepoter(graph.MaxReporter)
-// 	// graph.BronKerbosch2aGP(pg, reporter)
-// 	// graph.BronKerbosch2(pg, reporter, nil, candidates, excluded)
-// 	graph.BronKerbosch2(pg, reporter, nil, candidates, excluded)
-// 	res2 := reporter.Report(pg.Size())
-// 	return res2, nil
-// }
+		}
+		return nil
+	})
+	if err != nil {
+		panic(err)
+	}
+}

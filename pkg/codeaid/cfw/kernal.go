@@ -1,24 +1,23 @@
-package graph
+package cfw
 
 import (
 	"errors"
 	"fmt"
-	"heterflow/pkg/codeaid/definition"
+	"heterflow/pkg/codeaid/def"
 	"math"
 	"strconv"
 )
 
 type Mapping[T any] interface {
-	int | float64 | int64
+	~int | ~float64 | ~int64
 	Injection(NodeVectors) T
 }
 
 type Transform struct {
-	nodeVector        NodeVectors
-	maximum           Vector
-	minimum           Vector
-	interval          Interval
-	divideHierarchies []int
+	nodeVector NodeVectors
+	maximum    Vector
+	minimum    Vector
+	interval   Interval
 	// vector            StatisticalVectors
 }
 
@@ -38,11 +37,11 @@ type MapStatisticalVector map[int]float64
 
 type SliceStatisticalVector []float64
 
-type AggregatedFeature = Programmer
+type AggregatedFeature = ProgramFeatures
 
 type value struct {
 	degree  float64
-	feature Features
+	feature *Node
 }
 
 type GraphKernels struct {
@@ -77,15 +76,26 @@ const (
 	DecreaseIntervalType
 )
 
-var (
-	hierarchies = []int{12, 6, 2, 6, 6, 6, 8, 4, 2, 6, 4, 6}
-)
+func FeatureVector(gra Graph, iterator int) StatisticalVectors {
+	gk := NewGraphKernels(gra, iterator)
+	if def.Debug {
+		fmt.Println("successfully get GraphKernel")
+	}
+	transform := gk.Iterator()
+	if def.Debug {
+		fmt.Println("successfully Iterator")
+	}
+	if def.Debug {
+		fmt.Println("next Injection")
+	}
+	return transform.Injection()
+}
 
 func NewMapStatisticalVector(hint int) MapStatisticalVector {
-	if hint < 4 {
-		hint = 4
+	if hint > 100 {
+		hint = 100
 	}
-	return make(MapStatisticalVector, hint>>2)
+	return make(MapStatisticalVector, hint)
 }
 
 func NewSliceStatisticalVector(hint int) SliceStatisticalVector {
@@ -95,14 +105,14 @@ func NewSliceStatisticalVector(hint int) SliceStatisticalVector {
 func NewFixedInterval(t *Transform) *FixedInterval {
 	maximum := t.maximum
 	minimum := t.minimum
-	divideHierarchies := t.divideHierarchies
-	base := make([]int, definition.MetricsNumber)
+	divideHierarchies := def.Hierarchies
+	base := make([]int, def.MetricsNumber)
 	base[0] = 1
-	for i := 1; i < definition.MetricsNumber; i++ {
+	for i := 1; i < def.MetricsNumber; i++ {
 		base[i] = divideHierarchies[i-1] * base[i-1]
 		// fmt.Println("base[i]: ", base[i], tran.divideHierarchies[i-1])
 	}
-	interval := make(Vector, definition.MetricsNumber)
+	interval := make(Vector, def.MetricsNumber)
 	for i, v := range maximum {
 		if minimum[i] == math.MaxFloat64 && maximum[i] == 0 {
 			interval[i] = 0
@@ -116,24 +126,24 @@ func NewFixedInterval(t *Transform) *FixedInterval {
 func NewDecreaseInterval(t *Transform) *DecreaseInterval {
 	maximum := t.maximum
 	minimum := t.minimum
-	divideHierarchies := t.divideHierarchies
-	base := make([]int, definition.MetricsNumber)
+	divideHierarchies := def.Hierarchies
+	base := make([]int, def.MetricsNumber)
 	base[0] = 1
-	for i := 1; i < definition.MetricsNumber; i++ {
+	for i := 1; i < def.MetricsNumber; i++ {
 		base[i] = divideHierarchies[i-1] * base[i-1]
 		// fmt.Println("base[i]: ", base[i], tran.divideHierarchies[i-1])
 	}
-	interval := make([]Vector, definition.MetricsNumber)
+	interval := make([]Vector, def.MetricsNumber)
 	for i, v := range maximum {
 		vec := make(Vector, 0, divideHierarchies[i])
 		if minimum[i] == math.MaxFloat64 && maximum[i] == 0 {
 			vec = append(vec, 0)
 		} else {
-			total := (math.Pow(definition.FeatureDividBase, float64(divideHierarchies[i])) - 1) / (definition.FeatureDividBase - 1)
+			total := (math.Pow(def.FeatureDividBase, float64(divideHierarchies[i])) - 1) / (def.FeatureDividBase - 1)
 			dif := v - minimum[i]
 			spac := dif / total
 			for num := 0; num < divideHierarchies[i]; num++ {
-				copies := math.Pow(definition.FeatureDividBase, float64(num))
+				copies := math.Pow(def.FeatureDividBase, float64(num))
 				vec = append(vec, copies*spac)
 			}
 			vec[len(vec)-1] = v
@@ -151,11 +161,6 @@ func NewDecreaseInterval(t *Transform) *DecreaseInterval {
 	return &DecreaseInterval{tran: t, intervals: interval, base: base}
 }
 
-func NewTransfrm() Transform {
-	// hierarchies := []int{6, 3, 1, 3, 3, 3, 4, 2, 1, 3, 4}
-	return Transform{divideHierarchies: hierarchies}
-}
-
 func NewInterval(it IntervalType, t *Transform) Interval {
 	switch it {
 	case FixedIntervalType:
@@ -170,7 +175,7 @@ func NewInterval(it IntervalType, t *Transform) Interval {
 func NewValue(deg int, node *Node) value {
 	var val value
 	val.degree = float64(deg)
-	ft := NewFeatures(FuncFeatures)
+	ft := NewNode()
 	if node != nil {
 		ft.AddInfo(node)
 	}
@@ -186,7 +191,7 @@ func NewGraphKernels(gra Graph, ittime int) GraphKernels {
 		adj[k] = val
 	}
 	if ittime == 0 {
-		ittime = definition.GraphKernalDefaultIteratorTimes
+		ittime = def.GraphKernalDefaultIteratorTimes
 	}
 	return GraphKernels{
 		g:           gra,
@@ -236,14 +241,14 @@ func (gk *GraphKernels) Normalization() Transform {
 		sum.AddValue(v)
 	}
 	nv := make(NodeVectors, len(gk.adjacencies))
-	minimum, maximum := make(Vector, definition.MetricsNumber), make(Vector, definition.MetricsNumber)
+	minimum, maximum := make(Vector, def.MetricsNumber), make(Vector, def.MetricsNumber)
 	for i := range minimum {
 		minimum[i] = math.MaxFloat64
 	}
 	// fmt.Printf("%f %+v\n", sum.degree, sum.feature)
 	for k, v := range gk.adjacencies {
 		// fmt.Printf("%f %+v\n\n", v.degree, v.feature)
-		vec := make(Vector, 0, definition.MetricsNumber)
+		vec := make(Vector, 0, def.MetricsNumber)
 		feat := append(v.feature.Features(), int(v.degree))
 		sumfeat := append(sum.feature.Features(), int(sum.degree))
 		for i, v := range feat {
@@ -262,7 +267,7 @@ func (gk *GraphKernels) Normalization() Transform {
 		nv[k] = vec
 	}
 	// fmt.Println(minimum, maximum)
-	res := NewTransfrm()
+	res := Transform{}
 	res.nodeVector = nv
 	res.maximum = maximum
 	res.minimum = minimum
@@ -275,6 +280,7 @@ func (gk *GraphKernels) Normalization() Transform {
 func (tran *Transform) Injection() StatisticalVectors {
 	// fmt.Println(lenth)
 	lenth := tran.interval.Buckets()
+	// fmt.Println(lenth)
 	res := NewMapStatisticalVector(lenth)
 	// fmt.Println(len(tran.vector))
 	for _, vector := range tran.nodeVector {
@@ -288,6 +294,7 @@ func (tran *Transform) Injection() StatisticalVectors {
 		// fmt.Println("maximum", tran.maximum)
 		// fmt.Println("interval", tran.interval)
 		// }
+
 		res.Insert(idx)
 	}
 	// fmt.Println("\n")
@@ -295,12 +302,7 @@ func (tran *Transform) Injection() StatisticalVectors {
 }
 
 func (f *FixedInterval) Buckets() int {
-	length := 1
-	// fmt.Println(tran.divideHierarchies)
-	for _, v := range f.tran.divideHierarchies {
-		length *= (v + 1)
-	}
-	return length
+	return def.Buckets()
 }
 
 func (f *FixedInterval) Hash(vector Vector) int {
@@ -322,12 +324,7 @@ func (f *FixedInterval) Hash(vector Vector) int {
 }
 
 func (d *DecreaseInterval) Buckets() int {
-	length := 1
-	// fmt.Println(tran.divideHierarchies)
-	for _, v := range d.tran.divideHierarchies {
-		length *= v
-	}
-	return length
+	return def.Buckets()
 }
 
 func (d *DecreaseInterval) Hash(vector Vector) int {
@@ -388,8 +385,9 @@ func (sv SliceStatisticalVector) Len() int {
 	return len(sv)
 }
 
-func (msv MapStatisticalVector) InnerProduct(another StatisticalVectors) (sum float64, err error) {
+func (msv MapStatisticalVector) InnerProduct(another StatisticalVectors) (float64, error) {
 	intersectionlen := 0.0
+	sum := 0.0
 	for k, v := range msv {
 		va, err := another.At(k)
 		if err != nil {
@@ -397,12 +395,13 @@ func (msv MapStatisticalVector) InnerProduct(another StatisticalVectors) (sum fl
 			continue
 		}
 		intersectionlen++
-		sum += 1 / (math.Abs(v-va) + definition.Alpha)
+		sum += 1 / (math.Abs(v-va) + def.Alpha)
 		// sum += (v * va)
 	}
-	sum = sum / (intersectionlen * (1.0 / definition.Alpha))
-	// fmt.Println(another.Len())
-	return
+	sum = sum / (intersectionlen * (1.0 / def.Alpha))
+	totallen := float64(def.Buckets())
+	ans := def.StatisticalVectorDisjointWeight*((totallen-intersectionlen)/totallen) + def.StatisticalVectorIntersectionWeight*sum
+	return ans, nil
 }
 
 func (msv MapStatisticalVector) ForEach(f func(int, float64)) {
@@ -412,7 +411,6 @@ func (msv MapStatisticalVector) ForEach(f func(int, float64)) {
 }
 
 func (msv MapStatisticalVector) Insert(pos int) {
-
 	msv[pos]++
 }
 

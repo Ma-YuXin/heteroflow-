@@ -920,3 +920,36 @@ package tmp
 // 	}
 // 	return res
 // }
+
+// func CFGSimilarity(config1 *assemblyslicer.Config, config2 *assemblyslicer.Config) (float64, error) {
+// 	pg := graph.NewProductGraph(config1.Graph, config2.Graph)
+// 	candidates := pg.AllConnectedVertices()
+// 	if util.IsEmpty(candidates) {
+// 		return 0.0, fmt.Errorf("no connected vertics")
+// 	}
+// 	excluded := make(util.VertexSet[graph.Vertex, struct{}], len(candidates))
+// 	reporter := graph.NewRepoter(graph.MaxReporter)
+// 	// graph.BronKerbosch2aGP(pg, reporter)
+// 	// graph.BronKerbosch2(pg, reporter, nil, candidates, excluded)
+// 	graph.BronKerbosch2(pg, reporter, nil, candidates, excluded)
+// 	res2 := reporter.Report(pg.Size())
+// 	return res2, nil
+// }
+
+
+
+
+
+	// root := c.build.GraphGraphFromRoot("main@@Base-0x50")
+	// c.build.AllFunctionName()
+	// c.build.BFS(root)
+	// roots := c.Graph.BuildGraph()
+	// filefeature.ControlFlowGraphRoots = roots
+	// graph.FuncCalltimes(c.Graph)
+	// for _, node := range roots {
+	// 	graph.BFS(node.FuncFeatures)
+	// 	fmt.Println()
+	// 	fmt.Println(`***************************************************`)
+	// 	fmt.Println()
+	// }
+	

@@ -1,4 +1,4 @@
-package assemblyslicer
+package slicer
 
 import (
 	"bytes"
@@ -8,18 +8,14 @@ import (
 )
 
 func TestSystemCallAndLibs(t *testing.T) {
-	SyscallAndLibs("/mnt/data/nfs/myx/heterflow/cmd/codeaid/main")
+	syscallAndLibs("/mnt/data/nfs/myx/heterflow/cmd/codeaid/main")
 }
-func TestRedirctedassembleToFile(t *testing.T) {
-	RedirctedassembleToFile("/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/blender")
-}
-
 func TestSharedLibs(t *testing.T) {
-	fmt.Println(SharedLibs("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X64/O0/acl-2.2.53/chacl"))
+	fmt.Println(sharedLibs("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X64/O0/acl-2.2.53/chacl"))
 }
 func TestUnion(t *testing.T) {
 	fmt.Println("------------------------------")
-	sharedlib := SharedLibs("/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/blender")
+	sharedlib := sharedLibs("/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/blender")
 	// sharedlib := map[string]string{
 	// 	"":  "/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/lib/libOpenImageDenoise_device_cuda.so.2.2.2",
 	// 	"d": "/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/lib/libOpenImageDenoise_device_cpu.so.2.2.2",

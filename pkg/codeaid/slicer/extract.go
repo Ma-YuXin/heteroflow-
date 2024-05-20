@@ -1,27 +1,40 @@
-package assemblyslicer
+package slicer
 
 import (
 	"bufio"
 	"errors"
-	"heterflow/pkg/codeaid/graph"
+	"heterflow/pkg/codeaid/cfw"
 	"heterflow/pkg/logger"
 	"log"
 	"strings"
 )
 
-type Extract interface {
+type extracter interface {
 	callInstArgs(s string) (string, error)
 	functionName(s string) (string, error)
 	verb(s string) (string, error)
 	removeleading(scan *bufio.Scanner)
-	segmentFeatures(scan *bufio.Scanner) (graph.Features, bool)
-	parseInstruction(inst string, funcfeatures graph.Features)
-	recordinstructionInfo(inst string, funcfeatures graph.Features)
+	readAsmFunc(scan *bufio.Scanner) (*cfw.Node, bool)
+	parseInstruction(inst string, funcfeatures *cfw.Node)
+	recordinstructionInfo(inst string, funcfeatures *cfw.Node)
 }
 
-type IntelExtract struct{}
+type intelExtract struct{}
 
 type Class int8
+
+const (
+	TransmissionInstruction Class = iota
+	IOInstruction
+	ArithmeticInstruction
+	LogicalInstruction
+	StringInstruction
+	ProgramTransferInstruction
+	InterruptInstruction
+	PseudoInstruction
+	ProcessorControlInstruction
+	OtherInstruction
+)
 
 var (
 	UsedAction      = map[string]struct{}{}
@@ -131,24 +144,11 @@ var (
 		"pslldq": LogicalInstruction, "psrad": LogicalInstruction, "psrld": LogicalInstruction, "psrldq": LogicalInstruction,
 		"psrlq": LogicalInstruction, "roundsd": ArithmeticInstruction, "shufps": ProcessorControlInstruction,
 		"sqrtsd": ArithmeticInstruction, "vbroadcasti128": TransmissionInstruction, "cqo": TransmissionInstruction,
-		"leave": ProgramTransferInstruction,
+		"leave": ProgramTransferInstruction, "repnz": StringInstruction,
 	}
 )
 
-const (
-	TransmissionInstruction Class = iota
-	IOInstruction
-	ArithmeticInstruction
-	LogicalInstruction
-	StringInstruction
-	ProgramTransferInstruction
-	InterruptInstruction
-	PseudoInstruction
-	ProcessorControlInstruction
-	OtherInstruction
-)
-
-func (ie IntelExtract) callInstArgs(s string) (string, error) {
+func (ie intelExtract) callInstArgs(s string) (string, error) {
 	if len(s) < 39 {
 		return "", errors.New("pasering assembly file occur error , the line is too short , can't get call instruction args. content: " + s)
 	}
@@ -165,7 +165,7 @@ func (ie IntelExtract) callInstArgs(s string) (string, error) {
 	return s[pos+40 : len(s)-1], nil
 }
 
-func (ie IntelExtract) functionName(s string) (string, error) {
+func (ie intelExtract) functionName(s string) (string, error) {
 	_, preProcess, ok := strings.Cut(s, "<")
 	if !ok {
 		return "", errors.New("not proper function header instruction")
@@ -177,12 +177,7 @@ func (ie IntelExtract) functionName(s string) (string, error) {
 	return name, nil
 }
 
-func (ie IntelExtract) verb(s string) (string, error) {
-	// defer func(s string) {
-	// 	if r := recover(); r != nil {
-	// 		fmt.Println("[Panic] ", s)
-	// 	}
-	// }(s)
+func (ie intelExtract) verb(s string) (string, error) {
 	if len(s) < 32 {
 		return "", errors.New("pasering assembly file occur error , the line is too short , can't get the action of assembly instruction. content: " + s)
 	}
@@ -193,28 +188,28 @@ func (ie IntelExtract) verb(s string) (string, error) {
 	return s[32 : pos+32], nil
 }
 
-func (ie IntelExtract) removeleading(scan *bufio.Scanner) {
+func (ie intelExtract) removeleading(scan *bufio.Scanner) {
 	for i := 0; i < 6; i++ {
 		scan.Scan()
 	}
 }
 
-func (ie IntelExtract) segmentFeatures(scan *bufio.Scanner) (graph.Features, bool) {
-	funcfeatures := graph.NewFeatures(graph.FuncFeatures)
+func (ie intelExtract) readAsmFunc(scan *bufio.Scanner) (*cfw.Node, bool) {
+	node := cfw.NewNode()
 	for scan.Scan() {
 		line := scan.Text()
 		if len(line) < 4 {
-			return funcfeatures, false
+			return node, false
 		}
-		ie.parseInstruction(line, funcfeatures)
+		ie.parseInstruction(line, node)
 	}
 	if err := scan.Err(); err != nil {
 		log.Println(err)
 	}
-	return funcfeatures, true
+	return node, true
 }
 
-func (ie IntelExtract) parseInstruction(inst string, funcfeatures graph.Features) {
+func (ie intelExtract) parseInstruction(inst string, funcfeatures *cfw.Node) {
 	if strings.HasPrefix(inst, " ") {
 		ie.recordinstructionInfo(inst, funcfeatures)
 	} else {
@@ -226,52 +221,51 @@ func (ie IntelExtract) parseInstruction(inst string, funcfeatures graph.Features
 	}
 }
 
-func (ie IntelExtract) recordinstructionInfo(inst string, funcfeatures graph.Features) {
+func (ie intelExtract) recordinstructionInfo(inst string, node *cfw.Node) {
 	action, err := ie.verb(inst)
 	if err != nil {
 		logger.Info(err.Error())
 		return
 	}
 	class := actionClassify(action)
-	if ff, ok := funcfeatures.(*graph.Node); ok {
-		ff.TotalInstruction++
-		switch class {
-		case TransmissionInstruction:
-			ff.TransmissionInstruction++
-		case IOInstruction:
-			ff.IOInstruction++
-		case ArithmeticInstruction:
-			ff.ArithmeticInstruction++
-		case LogicalInstruction:
-			ff.LogicalInstruction++
-		case StringInstruction:
-			ff.StringInstruction++
-		case ProgramTransferInstruction:
-			ff.ProgramTransferInstruction++
-			callee, err := ie.callInstArgs(inst)
-			if err != nil {
-				logger.Info((err.Error()))
-				return
-			}
-			ff.AddCallee(callee)
-		case InterruptInstruction:
-			ff.InterruptInstruction++
-		case PseudoInstruction:
-			ff.PseudoInstruction++
-		case ProcessorControlInstruction:
-			ff.ProcessorControlInstruction++
-		case OtherInstruction:
-			ff.OtherInstruction++
+	node.TotalInstruction++
+	switch class {
+	case TransmissionInstruction:
+		node.TransmissionInstruction++
+	case IOInstruction:
+		node.IOInstruction++
+	case ArithmeticInstruction:
+		node.ArithmeticInstruction++
+	case LogicalInstruction:
+		node.LogicalInstruction++
+	case StringInstruction:
+		node.StringInstruction++
+	case ProgramTransferInstruction:
+		node.ProgramTransferInstruction++
+		callee, err := ie.callInstArgs(inst)
+		if err != nil {
+			logger.Info((err.Error()))
+			return
 		}
+		node.AddCallee(callee)
+	case InterruptInstruction:
+		node.InterruptInstruction++
+	case PseudoInstruction:
+		node.PseudoInstruction++
+	case ProcessorControlInstruction:
+		node.ProcessorControlInstruction++
+	case OtherInstruction:
+		node.OtherInstruction++
 	}
+
 }
 
 func actionClassify(action string) Class {
 	if v, ok := X86Instrcutions[action]; ok {
-		UsedAction[action] = struct{}{}
+		// UsedAction[action] = struct{}{}
 		return v
 	} else {
-		MissedAction[action] = struct{}{}
+		// MissedAction[action] = struct{}{}
 		return OtherInstruction
 	}
 }

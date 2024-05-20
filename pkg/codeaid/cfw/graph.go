@@ -1,10 +1,11 @@
-package graph
+package cfw
 
 import (
 	"fmt"
 	"heterflow/pkg/logger"
 	"sort"
 )
+
 type Vertex Pair
 type Pair struct {
 	Key   string
@@ -24,21 +25,19 @@ type UndirectedGraph struct {
 	DirectedGraph
 }
 
-func NewGraph(class GraphType) Graph {
-	switch class {
-	case Directedh:
-		return &DirectedGraph{
-			Relations: make(map[string]*Node),
-		}
-	case Undirected:
-		return &UndirectedGraph{
-			DirectedGraph: DirectedGraph{
-				Relations: make(map[string]*Node),
-			},
-		}
-	default:
-		return nil
+func NewDirectedGraph() Graph {
+	return &DirectedGraph{
+		Relations: make(map[string]*Node),
 	}
+}
+
+func NewUndirectedGraph() Graph {
+	return &UndirectedGraph{
+		DirectedGraph: DirectedGraph{
+			Relations: make(map[string]*Node),
+		},
+	}
+
 }
 
 func addNode(g Graph, ff *Node) {
@@ -58,11 +57,10 @@ func addNode(g Graph, ff *Node) {
 		if v, ok := rel[name]; ok {
 			v.CalledTimes += 1
 		} else {
-			if nf, ok := NewFeatures(FuncFeatures).(*Node); ok {
-				nf.CalledTimes = 1
-				nf.flag = true
-				rel[name] = nf
-			}
+			node := NewNode()
+			node.CalledTimes = 1
+			node.flag = true
+			rel[name] = node
 		}
 	}
 }
@@ -108,9 +106,9 @@ func (g *UndirectedGraph) appendLinkInfo() {
 // 	return len(g.Relations)
 // }
 
-func TopK(m map[string]*Node, featureSelect func(Features) int, k int) map[Features]struct{} {
+func topK(m map[string]*Node, featureSelect func(*Node) int, k int) map[*Node]struct{} {
 	if len(m) < k {
-		topk := make(map[Features]struct{}, k)
+		topk := make(map[*Node]struct{}, k)
 		for _, value := range m {
 			topk[value] = struct{}{}
 		}
@@ -119,7 +117,7 @@ func TopK(m map[string]*Node, featureSelect func(Features) int, k int) map[Featu
 	return findTopKValues(m, featureSelect, k)
 }
 
-func findTopKValues(m map[string]*Node, featureSelect func(Features) int, k int) map[Features]struct{} {
+func findTopKValues(m map[string]*Node, featureSelect func(*Node) int, k int) map[*Node]struct{} {
 	type kv struct {
 		Key   string
 		Value int
@@ -134,21 +132,21 @@ func findTopKValues(m map[string]*Node, featureSelect func(Features) int, k int)
 		return ss[i].Value > ss[j].Value // 降序排序
 	})
 
-	topK := make(map[Features]struct{}, k)
+	topK := make(map[*Node]struct{}, k)
 	for i := 0; i < k; i++ {
 		topK[m[ss[i].Key]] = struct{}{}
 	}
 
 	return topK
 }
-func BFS(root Features) {
+func bFS(root *Node) {
 	// for k, v := range b.Relations {
 	// 	fmt.Printf("%s %+v \n", k, v.Callee)
 	// }
 	// fmt.Println()
-	history := map[Features]struct{}{root: {}}
-	queue := []Features{root}
-	var last Features = root
+	history := map[*Node]struct{}{root: {}}
+	queue := []*Node{root}
+	var last *Node = root
 	for len(queue) != 0 {
 		cur := queue[0]
 		if cur != nil {
@@ -167,6 +165,7 @@ func BFS(root Features) {
 		queue = queue[1:]
 	}
 }
+
 func buildGraph(g Graph) map[string]*Node {
 	children := make(map[string]bool)
 	Relations := g.Relation()

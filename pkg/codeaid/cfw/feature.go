@@ -1,23 +1,20 @@
-package graph
+package cfw
 
 import (
 	"heterflow/pkg/logger"
 )
 
-type FeatureType int
-
-type Features interface {
+type Features[T any] interface {
+	Node | ProgramFeatures
 	//返回节点或者程序的特征，切片中第一个值要求是总特征数
 	Features() []int
 	Name() string
-	Nodes() map[string]Features
+	Nodes() map[string]*Node
 	AddInfo(interface{})
-	DeepCopy() Features
+	DeepCopy() T
 }
 
-type GraphType int
-
-type Programmer struct {
+type ProgramFeatures struct {
 	ProgrammerName                   string
 	TotalInstruction                 int
 	TotalTransmissionInstruction     int
@@ -29,7 +26,7 @@ type Programmer struct {
 	TotalInterruptInstruction        int
 	TotalPseudoInstruction           int
 	TotalProcessorControlInstruction int
-	ControlFlowGraphRoots            map[string]Features
+	ControlFlowGraphRoots            map[string]*Node
 }
 
 type Node struct {
@@ -45,38 +42,27 @@ type Node struct {
 	PseudoInstruction           int
 	ProcessorControlInstruction int
 	OtherInstruction            int
-	Callee                      map[string]Features
+	Callee                      map[string]*Node
 	CalledTimes                 int
 	flag                        bool
 }
 
-const (
-	ProgrammerFeature FeatureType = iota
-	FuncFeatures
-	Directedh GraphType = iota
-	Undirected
-)
-
-func NewFeatures(class FeatureType) Features {
-	switch class {
-	case ProgrammerFeature:
-		return &Programmer{
-			ControlFlowGraphRoots: make(map[string]Features),
-		}
-	case FuncFeatures:
-		return &Node{
-			Callee: make(map[string]Features),
-		}
-	default:
-		return nil
+func NewNode() *Node {
+	return &Node{
+		Callee: make(map[string]*Node),
 	}
 }
 
+func NewProgramFeatures() *ProgramFeatures {
+	return &ProgramFeatures{
+		ControlFlowGraphRoots: make(map[string]*Node),
+	}
+}
 func (ff *Node) AddCallee(funcName string) {
 	ff.Callee[funcName] = nil
 }
 
-func (ff *Node) Nodes() map[string]Features {
+func (ff *Node) Nodes() map[string]*Node {
 	return ff.Callee
 }
 
@@ -88,7 +74,7 @@ func (ff *Node) Name() string {
 	return ff.FuncName
 }
 
-func (ff *Node) DeepCopy() Features {
+func (ff *Node) DeepCopy() *Node {
 	return &Node{
 		FuncName:                    ff.FuncName,
 		TotalInstruction:            ff.TotalInstruction,
@@ -126,19 +112,19 @@ func (ff *Node) AddInfo(funcFeatures interface{}) {
 	}
 }
 
-func (ff *Programmer) Features() []int {
+func (ff *ProgramFeatures) Features() []int {
 	return []int{ff.TotalInstruction, ff.TotalTransmissionInstruction, ff.TotalIOInstruction, ff.TotalArithmeticInstruction, ff.TotalLogicalInstruction, ff.TotalStringInstruction, ff.TotalProgramTransferInstruction, ff.TotalInterruptInstruction, ff.TotalPseudoInstruction, ff.TotalProcessorControlInstruction}
 }
 
-func (ff *Programmer) Nodes() map[string]Features {
+func (ff *ProgramFeatures) Nodes() map[string]*Node {
 	return ff.ControlFlowGraphRoots
 }
 
-func (ff *Programmer) Name() string {
+func (ff *ProgramFeatures) Name() string {
 	return ff.ProgrammerName
 }
 
-func (ff *Programmer) AddInfo(funcFeatures interface{}) {
+func (ff *ProgramFeatures) AddInfo(funcFeatures interface{}) {
 	if funcfeat, ok := funcFeatures.(*Node); ok {
 		ff.TotalInstruction += funcfeat.TotalInstruction
 		ff.TotalTransmissionInstruction += funcfeat.TransmissionInstruction
@@ -152,7 +138,7 @@ func (ff *Programmer) AddInfo(funcFeatures interface{}) {
 		ff.TotalProcessorControlInstruction += funcfeat.ProcessorControlInstruction
 	} else if funcfeat, ok := funcFeatures.(string); ok {
 		ff.ProgrammerName = funcfeat
-	} else if funcfeat, ok := funcFeatures.(*Programmer); ok {
+	} else if funcfeat, ok := funcFeatures.(*ProgramFeatures); ok {
 		ff.TotalInstruction += funcfeat.TotalInstruction
 		ff.TotalTransmissionInstruction += funcfeat.TotalTransmissionInstruction
 		ff.TotalIOInstruction += funcfeat.TotalIOInstruction
@@ -167,8 +153,9 @@ func (ff *Programmer) AddInfo(funcFeatures interface{}) {
 		logger.Error("can't add to Programmer Feature,the type is unfit ")
 	}
 }
-func (ff *Programmer) DeepCopy() Features {
-	return &Programmer{
+
+func (ff *ProgramFeatures) DeepCopy() *ProgramFeatures {
+	return &ProgramFeatures{
 		ProgrammerName:                   ff.ProgrammerName,
 		TotalInstruction:                 ff.TotalInstruction,
 		TotalTransmissionInstruction:     ff.TotalTransmissionInstruction,

@@ -1,0 +1,1 @@
+find ../ -iname "*.go" -type f -exec gofmt -w {} \; 
