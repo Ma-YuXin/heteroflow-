@@ -14,6 +14,7 @@ func NewCodeAidCommand() *cobra.Command {
 		Long:  ` `,
 		Short: ` `,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// analyzer.MostSimilarProgramerByBinary("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc")
 			// fmt.Println(analyzer.MostSimilarProgramer("/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc"))
 			analyzer.PreprocessAssemblyFiles("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86")
 			// slicer.Process("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/O0/acl-2.2.53/setfacl")

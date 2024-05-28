@@ -15,15 +15,16 @@ type Mapping[T any] interface {
 
 type Transform struct {
 	nodeVector NodeVectors
-	maximum    Vector
-	minimum    Vector
+	maximum    Vector[float64]
+	minimum    Vector[float64]
 	interval   Interval
+	// numSplitsPerInterval Vector[int]
 	// vector            StatisticalVectors
 }
 
-type NodeVectors map[string]Vector
+type NodeVectors map[string]Vector[float64]
 
-type Vector []float64
+type Vector[T comparable] []T
 
 type StatisticalVectors interface {
 	InnerProduct(StatisticalVectors) (float64, error)
@@ -35,18 +36,19 @@ type StatisticalVectors interface {
 
 type MapStatisticalVector map[int]float64
 
-type SliceStatisticalVector []float64
+type SliceStatisticalVector Vector[float64]
 
 type AggregatedFeature = ProgramFeatures
 
 type value struct {
-	degree  float64
-	feature *Node
+	// degree  float64
+	*Node
 }
 
 type GraphKernels struct {
-	g           Graph
-	K           int //迭代次数
+	// g           Graph
+	// numSplitsPerInterval Vector[int]
+	k           int //迭代次数
 	adjacencies map[string]value
 }
 
@@ -54,20 +56,22 @@ type IntervalType int
 
 type Interval interface {
 	//特征向量的长度
-	Buckets() int
+	// Buckets() int
 	//将节点特征映射到特征向量的某一位置
-	Hash(Vector) int
+	Hash(Vector[float64]) int
 }
 
 type FixedInterval struct {
+	// buckets   int
 	tran      *Transform
-	intervals Vector
+	intervals Vector[float64]
 	base      []int
 }
 
 type DecreaseInterval struct {
+	// buckets   int
 	tran      *Transform
-	intervals []Vector
+	intervals []Vector[float64]
 	base      []int
 }
 
@@ -76,6 +80,22 @@ const (
 	DecreaseIntervalType
 )
 
+var (
+	buckets              int
+	numSplitsPerInterval Vector[int]
+)
+
+func init() {
+	no := NewNode()
+	numSplitsPerInterval = no.SegmentsPerInterval()
+	if numSplitsPerInterval == nil || len(numSplitsPerInterval) == 0 {
+		panic("numSplitsPerInterval is zero")
+	}
+	buckets = 1
+	for _, v := range numSplitsPerInterval {
+		buckets *= (v + 1)
+	}
+}
 func FeatureVector(gra Graph, iterator int) StatisticalVectors {
 	gk := NewGraphKernels(gra, iterator)
 	if def.Debug {
@@ -105,14 +125,14 @@ func NewSliceStatisticalVector(hint int) SliceStatisticalVector {
 func NewFixedInterval(t *Transform) *FixedInterval {
 	maximum := t.maximum
 	minimum := t.minimum
-	divideHierarchies := def.Hierarchies
-	base := make([]int, def.MetricsNumber)
+	length := len(maximum)
+	divideHierarchies := numSplitsPerInterval
+	base := make([]int, length)
 	base[0] = 1
-	for i := 1; i < def.MetricsNumber; i++ {
+	for i := 1; i < length; i++ {
 		base[i] = divideHierarchies[i-1] * base[i-1]
-		// fmt.Println("base[i]: ", base[i], tran.divideHierarchies[i-1])
 	}
-	interval := make(Vector, def.MetricsNumber)
+	interval := make(Vector[float64], length)
 	for i, v := range maximum {
 		if minimum[i] == math.MaxFloat64 && maximum[i] == 0 {
 			interval[i] = 0
@@ -120,22 +140,26 @@ func NewFixedInterval(t *Transform) *FixedInterval {
 			interval[i] = (v - minimum[i]) / float64(divideHierarchies[i])
 		}
 	}
+	num := 1
+	for _, v := range numSplitsPerInterval {
+		num *= (v + 1)
+	}
 	return &FixedInterval{tran: t, intervals: interval, base: base}
 }
 
 func NewDecreaseInterval(t *Transform) *DecreaseInterval {
 	maximum := t.maximum
 	minimum := t.minimum
-	divideHierarchies := def.Hierarchies
-	base := make([]int, def.MetricsNumber)
+	length := len(maximum)
+	divideHierarchies := numSplitsPerInterval
+	base := make([]int, length)
 	base[0] = 1
-	for i := 1; i < def.MetricsNumber; i++ {
+	for i := 1; i < length; i++ {
 		base[i] = divideHierarchies[i-1] * base[i-1]
-		// fmt.Println("base[i]: ", base[i], tran.divideHierarchies[i-1])
 	}
-	interval := make([]Vector, def.MetricsNumber)
+	interval := make([]Vector[float64], length)
 	for i, v := range maximum {
-		vec := make(Vector, 0, divideHierarchies[i])
+		vec := make(Vector[float64], 0, divideHierarchies[i])
 		if minimum[i] == math.MaxFloat64 && maximum[i] == 0 {
 			vec = append(vec, 0)
 		} else {
@@ -147,14 +171,6 @@ func NewDecreaseInterval(t *Transform) *DecreaseInterval {
 				vec = append(vec, copies*spac)
 			}
 			vec[len(vec)-1] = v
-			// total := (1 << (divideHierarchies[i])) - 1
-			// dif := v - minimum[i]
-			// spac := dif / float64(total)
-			// for num := 0; num < divideHierarchies[i]; num++ {
-			// 	copies := 1 << num
-			// 	vec = append(vec, float64(copies)*spac)
-			// }
-			// vec[len(vec)-1] = v
 		}
 		interval[i] = vec
 	}
@@ -172,14 +188,13 @@ func NewInterval(it IntervalType, t *Transform) Interval {
 	}
 }
 
-func NewValue(deg int, node *Node) value {
+func NewValue(node *Node) value {
 	var val value
-	val.degree = float64(deg)
 	ft := NewNode()
 	if node != nil {
-		ft.AddInfo(node)
+		ft.Add(node)
 	}
-	val.feature = ft
+	val.Node = ft
 	return val
 }
 
@@ -187,33 +202,32 @@ func NewGraphKernels(gra Graph, ittime int) GraphKernels {
 	rel := gra.Relation()
 	adj := make(map[string]value, len(gra.Relation()))
 	for k, v := range rel {
-		val := NewValue(len(v.Callee), v)
+		val := NewValue(v)
 		adj[k] = val
 	}
 	if ittime == 0 {
 		ittime = def.GraphKernalDefaultIteratorTimes
 	}
+
 	return GraphKernels{
-		g:           gra,
-		K:           ittime,
+
+		k:           ittime,
 		adjacencies: adj,
 	}
 }
 
 func (in1 *value) AddValue(in2 value) {
-	in1.degree += in2.degree
-	in1.feature.AddInfo(in2.feature)
+	in1.Add(in2.Node)
 }
 
 func (v value) DeepCopy() (val value) {
-	val.feature = v.feature.DeepCopy()
-	val.degree = v.degree
+	val.Node = v.Node.DeepCopy()
 	return
 }
 
 // 图核法，对每个节点聚合其邻居节点的信息，进行迭代，也就是感受野的大小
 func (gk *GraphKernels) Iterator() Transform {
-	for i := 0; i < gk.K; i++ {
+	for i := 0; i < gk.k; i++ {
 		gk.aggregate()
 	}
 	return gk.Normalization()
@@ -221,11 +235,11 @@ func (gk *GraphKernels) Iterator() Transform {
 
 // 具体的聚合操作，对每个节点聚合其邻居信息
 func (gk *GraphKernels) aggregate() {
-	rel := gk.g.Relation()
+	rel := gk.adjacencies
 	next := make(map[string]value, len(rel))
-	for funcName, funcNode := range rel {
-		tmp := gk.adjacencies[funcName].DeepCopy()
-		for k := range funcNode.Callee {
+	for funcName, nodeval := range rel {
+		tmp := nodeval.DeepCopy()
+		for k := range nodeval.Callee {
 			tmp.AddValue(gk.adjacencies[k])
 		}
 		next[funcName] = tmp
@@ -236,21 +250,22 @@ func (gk *GraphKernels) aggregate() {
 // 由于节点向量每个特征的值的差异很大，因而需要归一化处理，又因为对于每个特征来说值的分布可能都集中最小值附近，
 // 故使用间隔划分，统计落在每个区间的值的数量。
 func (gk *GraphKernels) Normalization() Transform {
-	sum := NewValue(0, nil)
+	sum := NewValue(nil)
 	for _, v := range gk.adjacencies {
 		sum.AddValue(v)
 	}
+	length := sum.MetricsNumber()
 	nv := make(NodeVectors, len(gk.adjacencies))
-	minimum, maximum := make(Vector, def.MetricsNumber), make(Vector, def.MetricsNumber)
+	minimum, maximum := make(Vector[float64], length), make(Vector[float64], length)
 	for i := range minimum {
 		minimum[i] = math.MaxFloat64
 	}
 	// fmt.Printf("%f %+v\n", sum.degree, sum.feature)
 	for k, v := range gk.adjacencies {
 		// fmt.Printf("%f %+v\n\n", v.degree, v.feature)
-		vec := make(Vector, 0, def.MetricsNumber)
-		feat := append(v.feature.Features(), int(v.degree))
-		sumfeat := append(sum.feature.Features(), int(sum.degree))
+		vec := make(Vector[float64], 0, length)
+		feat := v.Features()
+		sumfeat := sum.Features()
 		for i, v := range feat {
 			if v == 0 {
 				vec = append(vec, 0.0)
@@ -279,9 +294,9 @@ func (gk *GraphKernels) Normalization() Transform {
 // 图核法对每个节点向量进行映射，得到统计向量
 func (tran *Transform) Injection() StatisticalVectors {
 	// fmt.Println(lenth)
-	lenth := tran.interval.Buckets()
+
 	// fmt.Println(lenth)
-	res := NewMapStatisticalVector(lenth)
+	res := NewMapStatisticalVector(buckets)
 	// fmt.Println(len(tran.vector))
 	for _, vector := range tran.nodeVector {
 		idx := tran.interval.Hash(vector)
@@ -301,11 +316,11 @@ func (tran *Transform) Injection() StatisticalVectors {
 	return res
 }
 
-func (f *FixedInterval) Buckets() int {
-	return def.Buckets()
-}
+// func (f *FixedInterval) Buckets() int {
+// 	return f.buckets
+// }
 
-func (f *FixedInterval) Hash(vector Vector) int {
+func (f *FixedInterval) Hash(vector Vector[float64]) int {
 	idx := 0
 	for pos, val := range vector {
 		dif := val - f.tran.minimum[pos]
@@ -323,11 +338,11 @@ func (f *FixedInterval) Hash(vector Vector) int {
 	return idx
 }
 
-func (d *DecreaseInterval) Buckets() int {
-	return def.Buckets()
-}
+// func (d *DecreaseInterval) Buckets() int {
+// 	return d.buckets
+// }
 
-func (d *DecreaseInterval) Hash(vector Vector) int {
+func (d *DecreaseInterval) Hash(vector Vector[float64]) int {
 	idx := 0
 	for pos, val := range vector {
 		dif := val - d.tran.minimum[pos]
@@ -399,7 +414,7 @@ func (msv MapStatisticalVector) InnerProduct(another StatisticalVectors) (float6
 		// sum += (v * va)
 	}
 	sum = sum / (intersectionlen * (1.0 / def.Alpha))
-	totallen := float64(def.Buckets())
+	totallen := float64(buckets)
 	ans := def.StatisticalVectorDisjointWeight*((totallen-intersectionlen)/totallen) + def.StatisticalVectorIntersectionWeight*sum
 	return ans, nil
 }

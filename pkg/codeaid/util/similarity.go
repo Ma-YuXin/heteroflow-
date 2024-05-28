@@ -7,7 +7,8 @@ import (
 )
 
 // 计算两个向量的相似度，先将向量的各个维度转换为比率，然后通过反比例函数算出相应值
-func VectorApproximationRate(vectorx, vectory []int) (float64, error) {
+func VectorApproximationRate(vectorx, vectory []int, weight []float64) (float64, error) {
+	
 	length := len(vectorx)
 	ratio1 := make([]float64, length)
 	ratio2 := make([]float64, length)
@@ -18,12 +19,14 @@ func VectorApproximationRate(vectorx, vectory []int) (float64, error) {
 		ratio2[i] = float64(vectory[i]) / float64(total2)
 	}
 	sim := 0.0
+	sum := 0.0
 	for i := 0; i < length; i++ {
 		// fmt.Println(sim)
-		sim += 1 / (Absdif(ratio1[i], ratio2[i]) + def.Delta)
+		sim += weight[i] * (1 / (Absdif(ratio1[i], ratio2[i]) + def.Delta))
+		sum += weight[i] * (1 / def.Delta)
 	}
 	// fmt.Println("Pearson ", pear, "CosineSimilarity ", cos, "Sim", sim)
-	sim = sim / (float64(length) * (1 / def.Delta))
+	sim = sim / sum
 	return sim, nil
 }
 

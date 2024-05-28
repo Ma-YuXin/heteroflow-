@@ -6,6 +6,7 @@ import (
 	"heterflow/pkg/codeaid/def"
 	"heterflow/pkg/codeaid/slicer"
 	"heterflow/pkg/codeaid/util"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -25,6 +26,17 @@ func SimilarityByCalculator(cal interface{}, proJsonPath string) float64 {
 	calculator1 := cal.(*slicer.Calculator)
 	calculator2 := slicer.FetchCalculator(proJsonPath)
 	// fmt.Println(calculator2.Vector)
+	return calsimilarity(calculator1, calculator2)
+}
+
+// 将已经序列化为json的程序，与pro去对比，pro将从proJsonPath文件反序列化出来
+func SimilarityByJson(proJsonPath1 interface{}, proJsonPath2 string) float64 {
+	p1, _ := proJsonPath1.(string)
+	calculator1 := slicer.FetchCalculator(p1)
+	calculator2 := slicer.FetchCalculator(proJsonPath2)
+	return calsimilarity(calculator1, calculator2)
+}
+func calsimilarity(calculator1, calculator2 *slicer.Calculator) float64 {
 	prosim := programmerSimilarity(calculator1, calculator2)
 	if def.Debug {
 		fmt.Println("successfully arrive prosim")
@@ -42,29 +54,8 @@ func SimilarityByCalculator(cal interface{}, proJsonPath string) float64 {
 	if err != nil {
 		fmt.Println(err)
 	}
-	// fmt.Println(calculator1.FileFeatures.Name(), proJsonPath)
-	// fmt.Printf("%-7v %-20v %-7v %-20v %-7v %-20v %-5v %-20v\n", "cfwsim", cfwsim, "libsim", libsim, "prosim", prosim, "sim", sim)
-	if calculator1.Gpu != calculator2.Gpu {
-		sim *= def.PercentageDecline
-	}
-	return sim
-}
-
-// 将已经序列化为json的程序，与pro去对比，pro将从proJsonPath文件反序列化出来
-func SimilarityByJson(proJsonPath1 interface{}, proJsonPath2 string) float64 {
-	p1, _ := proJsonPath1.(string)
-	calculator1 := slicer.FetchCalculator(p1)
-	calculator2 := slicer.FetchCalculator(proJsonPath2)
-	prosim := programmerSimilarity(calculator1, calculator2)
-	libsim := libSimilarity(calculator1, calculator2)
-	cfwsim := cfwSimilarity(calculator1, calculator2)
-	vec := []float64{prosim, libsim, cfwsim}
-	sim, err := calculateWeightedSum(vec, def.Weight)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// fmt.Println(calculator1.FileFeatures.Name(), proJsonPath2)
-	// fmt.Printf("%-7v %-20v %-7v %-20v %-7v %-20v %-5v %-20v\n", "cfwsim", cfwsim, "libsim", libsim, "prosim", prosim, "sim", sim)
+	// fmt.Println(calculator1.FileFeatures.Name(), calculator2.FileFeatures.Name())
+	fmt.Printf("%-10v %-20v %-7v %-20v %-7v %-20v %-7v %-20v %-5v %-20v\n", calculator1.FileFeatures.Name(), calculator2.FileFeatures.Name(), "cfwsim", cfwsim, "libsim", libsim, "prosim", prosim, "sim", sim)
 	if calculator1.Gpu != calculator2.Gpu {
 		sim *= def.PercentageDecline
 	}
@@ -80,7 +71,7 @@ func maxSim(maxchan chan value) string {
 			mostSimilarity = v.name
 		}
 		if v.num > 0.9 {
-			fmt.Println(v.num, v.name)
+			// fmt.Println(v.num, v.name)
 		}
 	}
 	return mostSimilarity
@@ -96,6 +87,7 @@ func processFiles(pro interface{}, maxchan chan value, processor fileProcessor) 
 			return err
 		}
 		if !info.IsDir() {
+			// fmt.Println(path)
 			sem <- struct{}{}
 			go func() {
 				defer func() { <-sem }() // 释放槽位
@@ -149,18 +141,24 @@ func programmerSimilarity(calculator1 *slicer.Calculator, calculator2 *slicer.Ca
 	// if err != nil {
 	// 	fmt.Println(err)
 	// }
-	ar, err := util.VectorApproximationRate(calculator1.FileFeatures.Features(), calculator2.FileFeatures.Features())
+	// fmt.Println(calculator1.FileFeatures.Features())
+	// fmt.Println(calculator2.FileFeatures.Features())
+	// fmt.Println(calculator1.FileFeatures.FeaturesWeight())
+	ar, err := util.VectorApproximationRate(calculator1.FileFeatures.Features(), calculator2.FileFeatures.Features(), calculator1.FileFeatures.FeaturesWeight())
 	if err != nil {
 		fmt.Println(err)
 	}
 	t1 := calculator1.FileFeatures.Features()[0]
 	t2 := calculator2.FileFeatures.Features()[0]
 	dim := util.Absdif(t1, t2)
-	tir := 1 - float64(dim)/def.MaxTotalInstDiff
-	if tir < 0 {
-		tir = 0
+	var tir float64
+	if dim < 1 {
+		tir = 1.0
+	} else {
+		tir = 1 - math.Log10(float64(dim))/math.Log10(def.MaxTotalInstDiff)
+		// float64(dim)/def.MaxTotalInstDiff
 	}
-	// fmt.Println("dim", dim, "tir", tir)
+	// fmt.Println("dim", dim, "tir", tir, "ar", ar, math.Log10(float64(dim)), math.Log10(def.MaxTotalInstDiff))
 	return def.TotalInstWeight*tir + def.ProgramFeatureWeight*ar
 }
 
@@ -198,10 +196,9 @@ func calculateWeightedSum(vec, weight []float64) (sum float64, err error) {
 	}
 	return
 }
-
 func PreprocessAssemblyFiles(root string) {
 	// 使用带缓冲区的通道来限制并发数量
-	sem := make(chan struct{}, 16)
+	sem := make(chan struct{}, 32)
 	var wg sync.WaitGroup
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

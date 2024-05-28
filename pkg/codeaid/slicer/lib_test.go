@@ -1,47 +1,103 @@
 package slicer
 
 import (
-	"bytes"
-	"fmt"
-	"os/exec"
+	"heterflow/pkg/codeaid/util"
+	"reflect"
 	"testing"
 )
 
 func TestSystemCallAndLibs(t *testing.T) {
-	syscallAndLibs("/mnt/data/nfs/myx/heterflow/cmd/codeaid/main")
+	// 定义测试案例结构
+	testCases := []struct {
+		name     string                           // 测试描述
+		input    string                           // 输入值
+		expected util.VertexSet[string, struct{}] // 期望结果
+	}{
+		{"case1",
+			"/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X64/O0/acl-2.2.53/chacl",
+			util.VertexSet[string, struct{}]{
+				"__bss_start":         {},
+				"__errno_location":    {},
+				"__uClibc_main":       {},
+				"__xpg_basename":      {},
+				"_edata":              {},
+				"_end":                {},
+				"acl_check":           {},
+				"acl_delete_def_file": {},
+				"acl_delete_entry":    {},
+				"acl_entries":         {},
+				"acl_error":           {},
+				"acl_free":            {},
+				"acl_from_text":       {},
+				"acl_get_entry":       {},
+				"acl_get_file":        {},
+				"acl_get_tag_type":    {},
+				"acl_set_file":        {},
+				"acl_to_any_text":     {},
+				"closedir":            {},
+				"exit":                {},
+				"fprintf":             {},
+				"free":                {},
+				"fwrite":              {},
+				"getopt":              {},
+				"malloc":              {},
+				"opendir":             {},
+				"optind":              {},
+				"printf":              {},
+				"readdir64":           {},
+				"setlocale":           {},
+				"sprintf":             {},
+				"stderr":              {},
+				"strcmp":              {},
+				"strerror":            {},
+				"strlen":              {},
+			},
+		},
+	}
+
+	// 迭代测试案例
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// 调用要测试的函数并传入输入值
+			output := syscallAndLibs(tc.input)
+			// 判断输出是否符合预期
+			if !reflect.DeepEqual(output, tc.expected) {
+				t.Errorf("For input %s, expected result is %v, but got %v",
+					tc.input, tc.expected, output)
+			}
+		})
+	}
 }
 func TestSharedLibs(t *testing.T) {
-	fmt.Println(sharedLibs("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X64/O0/acl-2.2.53/chacl"))
-}
-func TestUnion(t *testing.T) {
-	fmt.Println("------------------------------")
-	sharedlib := sharedLibs("/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/blender")
-	// sharedlib := map[string]string{
-	// 	"":  "/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/lib/libOpenImageDenoise_device_cuda.so.2.2.2",
-	// 	"d": "/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/lib/libOpenImageDenoise_device_cpu.so.2.2.2",
-	// }
-	// syscall := SyscallAndLibs("/mnt/data/nfs/myx/tmp/app/heterflow")
-	// total := util.UnionKey(sharelib, syscall)
-	for _, path := range sharedlib {
-		if len(path) == 0 {
-			continue
-		}
-		// fmt.Println(path)
-		// buf.WriteString(path)
-		cmd := exec.Command("grep", "-Ec", "cudaFree|cudaMemcpy|cudaMalloc", path)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			// fmt.Println("error:", err)
-			continue
-		}
-		if !bytes.Equal(out, []byte("0\n")) {
-			fmt.Printf("%q", string(out))
-			// fmt.Println("out:", string(out), len(out))
-			fmt.Println(cmd.String())
-			fmt.Println(true)
-		}
+	// 定义测试案例结构
+	testCases := []struct {
+		name     string                         // 测试描述
+		input    string                         // 输入值
+		expected util.VertexSet[string, string] // 期望结果
+	}{
+		{"case1",
+			"/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X64/O0/acl-2.2.53/chacl",
+			util.VertexSet[string, string]{
+				"linux-vdso.so.1":       "",
+				"libacl.so.1":           "/lib/x86_64-linux-gnu/libacl.so.1",
+				"libattr.so.1":          "/lib/x86_64-linux-gnu/libattr.so.1",
+				"libc.so.0":             "",
+				"libc.so.6":             "/lib/x86_64-linux-gnu/libc.so.6",
+				"/lib/ld64-uClibc.so.0": "/lib64/ld-linux-x86-64.so.2",
+			},
+		},
 	}
-	fmt.Println(false)
-	// buf.WriteString("/mnt/data/nfs/myx/tmp/app/blender-4.1.1-linux-x64/lib/libOpenImageDenoise_device_cuda.so.2.2.2")
-	fmt.Println("------------------------------")
+
+	// 迭代测试案例
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// 调用要测试的函数并传入输入值
+			output := sharedLibs(tc.input)
+			// 判断输出是否符合预期
+			if !reflect.DeepEqual(output, tc.expected) {
+				t.Errorf("For input %s, expected result is %v, but got %v",
+					tc.input, tc.expected, output)
+			}
+		})
+	}
 }

@@ -1,172 +1,376 @@
 package cfw
 
 import (
-	"heterflow/pkg/logger"
+	"fmt"
+	"heterflow/pkg/codeaid/def"
 )
 
-type Features[T any] interface {
-	Node | ProgramFeatures
-	//返回节点或者程序的特征，切片中第一个值要求是总特征数
-	Features() []int
-	Name() string
-	Nodes() map[string]*Node
-	AddInfo(interface{})
-	DeepCopy() T
+type techInstCounter struct {
+	Total          int
+	VIRTUALIZATION int
+	GP             int
+	GP_EXT         int
+	GP_IN_OUT      int
+	FPU            int
+	MMX            int
+	STATE          int
+	SIMD           int
+	SSE            int
+	SCALAR         int
+	CRYPTO_HASH    int
+	AVX            int
+	AVX512         int
+	MASK           int
+	AMX            int
 }
 
+type behaviorInstCounter struct {
+	Total            int
+	Transmission     int
+	IO               int
+	Arithmetic       int
+	Logical          int
+	String           int
+	ProgramTransfer  int
+	Interrupt        int
+	Pseudo           int
+	ProcessorControl int
+}
 type ProgramFeatures struct {
-	ProgrammerName                   string
-	TotalInstruction                 int
-	TotalTransmissionInstruction     int
-	TotalIOInstruction               int
-	TotalArithmeticInstruction       int
-	TotalLogicalInstruction          int
-	TotalStringInstruction           int
-	TotalProgramTransferInstruction  int
-	TotalInterruptInstruction        int
-	TotalPseudoInstruction           int
-	TotalProcessorControlInstruction int
-	ControlFlowGraphRoots            map[string]*Node
+	Counter        techInstCounter
+	ProgrammerName string
+	// ControlFlowGraphRoots map[Cstring]*Node
 }
 
 type Node struct {
-	FuncName                    string
-	TotalInstruction            int
-	TransmissionInstruction     int
-	IOInstruction               int
-	ArithmeticInstruction       int
-	LogicalInstruction          int
-	StringInstruction           int
-	ProgramTransferInstruction  int
-	InterruptInstruction        int
-	PseudoInstruction           int
-	ProcessorControlInstruction int
-	OtherInstruction            int
-	Callee                      map[string]*Node
-	CalledTimes                 int
-	flag                        bool
+	Counter     techInstCounter
+	FuncName    string
+	Callee      map[string]struct{}
+	CalledTimes int
+	OutDegree   int
+	flag        bool
 }
 
 func NewNode() *Node {
 	return &Node{
-		Callee: make(map[string]*Node),
+		Callee: make(map[string]struct{}),
 	}
 }
 
 func NewProgramFeatures() *ProgramFeatures {
 	return &ProgramFeatures{
-		ControlFlowGraphRoots: make(map[string]*Node),
+		// ControlFlowGraphRoots: make(map[string]*Node),
 	}
 }
-func (ff *Node) AddCallee(funcName string) {
-	ff.Callee[funcName] = nil
+
+func (bic *behaviorInstCounter) get() []int {
+	return []int{
+		bic.Total,
+		bic.Transmission,
+		bic.IO,
+		bic.Arithmetic,
+		bic.Logical,
+		bic.String,
+		bic.ProgramTransfer,
+		bic.Interrupt,
+		bic.Pseudo,
+		bic.ProcessorControl,
+	}
 }
 
-func (ff *Node) Nodes() map[string]*Node {
-	return ff.Callee
+func (bic *behaviorInstCounter) degmentsPerInterval() []int {
+	return []int{
+		4, // Total:
+		4, // Transmission:
+		2, // IO:
+		4, // Arithmetic:
+		4, // Logical:
+		4, // String:
+		4, // ProgramTransfer:
+		2, // Interrupt:
+		2, // Pseudo:
+		4, // ProcessorControl:
+	}
 }
 
-func (ff *Node) Features() []int {
-	return []int{ff.TotalInstruction, ff.TransmissionInstruction, ff.IOInstruction, ff.ArithmeticInstruction, ff.LogicalInstruction, ff.StringInstruction, ff.ProgramTransferInstruction, ff.InterruptInstruction, ff.PseudoInstruction, ff.ProcessorControlInstruction, ff.CalledTimes}
+func (bic *behaviorInstCounter) deepCopy() behaviorInstCounter {
+	return behaviorInstCounter{
+		Total:            bic.Total,
+		Transmission:     bic.Transmission,
+		IO:               bic.IO,
+		Arithmetic:       bic.Arithmetic,
+		Logical:          bic.Logical,
+		String:           bic.String,
+		ProgramTransfer:  bic.ProgramTransfer,
+		Interrupt:        bic.Interrupt,
+		Pseudo:           bic.Pseudo,
+		ProcessorControl: bic.ProcessorControl,
+	}
 }
 
-func (ff *Node) Name() string {
-	return ff.FuncName
+func (bic *behaviorInstCounter) add(in *behaviorInstCounter) {
+	bic.Total += in.Total
+	bic.Transmission += in.Transmission
+	bic.IO += in.IO
+	bic.Arithmetic += in.Arithmetic
+	bic.Logical += in.Logical
+	bic.String += in.String
+	bic.ProgramTransfer += in.ProgramTransfer
+	bic.Interrupt += in.Interrupt
+	bic.Pseudo += in.Pseudo
+	bic.ProcessorControl += in.ProcessorControl
 }
 
-func (ff *Node) DeepCopy() *Node {
+func (bic *behaviorInstCounter) classification(action string) def.BehaviorInstManager {
+	if _, ok := def.X86X64ProcessorActionOrientedSet[action]; !ok {
+		fmt.Println("missed action", action)
+	}
+	return def.X86X64ProcessorActionOrientedSet[action]
+}
+
+func (bic *behaviorInstCounter) record(action string) {
+	class := bic.classification(action)
+	bic.Total++
+	for _, v := range class {
+		switch v {
+		case def.Transmission:
+			bic.Transmission++
+		case def.IO:
+			bic.IO++
+		case def.Arithmetic:
+			bic.Arithmetic++
+		case def.Logical:
+			bic.Logical++
+		case def.String:
+			bic.String++
+		case def.ProgramTransfer:
+			bic.ProgramTransfer++
+		case def.Interrupt:
+			bic.Interrupt++
+		case def.Pseudo:
+			bic.Pseudo++
+		case def.ProcessorControl:
+			bic.ProcessorControl++
+		}
+	}
+}
+
+func (tic *techInstCounter) get() []int {
+	return []int{
+		tic.Total,
+		tic.VIRTUALIZATION,
+		tic.GP,
+		tic.GP_EXT,
+		tic.GP_IN_OUT,
+		tic.FPU,
+		tic.MMX,
+		tic.STATE,
+		tic.SIMD,
+		tic.SSE,
+		tic.SCALAR,
+		tic.CRYPTO_HASH,
+		tic.AVX,
+		tic.AVX512,
+		tic.MASK,
+		tic.AMX,
+	}
+}
+
+func (tic *techInstCounter) segmentsPerInterval() []int {
+	return []int{
+		4, // Total:
+		4, // VIRTUALIZATION:
+		4, // GP:
+		4, // GP_EXT:
+		4, // GP_IN_OUT:
+		4, // FPU:
+		4, // MMX:
+		4, // STATE:
+		4, // SIMD:
+		4, // SSE:
+		4, // SCALAR:
+		4, // CRYPTO_HASH:
+		4, // AVX:
+		4, // AVX512:
+		4, // MASK:
+		4, // AMX:
+	}
+}
+
+func (tic *techInstCounter) deepCopy() techInstCounter {
+	return techInstCounter{
+		Total:          tic.Total,
+		VIRTUALIZATION: tic.VIRTUALIZATION,
+		GP:             tic.GP,
+		GP_EXT:         tic.GP_EXT,
+		GP_IN_OUT:      tic.GP_IN_OUT,
+		FPU:            tic.FPU,
+		MMX:            tic.MMX,
+		STATE:          tic.STATE,
+		SIMD:           tic.SIMD,
+		SSE:            tic.SSE,
+		SCALAR:         tic.SCALAR,
+		CRYPTO_HASH:    tic.CRYPTO_HASH,
+		AVX:            tic.AVX,
+		AVX512:         tic.AVX512,
+		MASK:           tic.MASK,
+		AMX:            tic.AMX,
+	}
+}
+
+func (tic *techInstCounter) add(in *techInstCounter) {
+	tic.Total += in.Total
+	tic.VIRTUALIZATION += in.VIRTUALIZATION
+	tic.GP += in.GP
+	tic.GP_EXT += in.GP_EXT
+	tic.GP_IN_OUT += in.GP_IN_OUT
+	tic.FPU += in.FPU
+	tic.MMX += in.MMX
+	tic.STATE += in.STATE
+	tic.SIMD += in.SIMD
+	tic.SSE += in.SSE
+	tic.SCALAR += in.SCALAR
+	tic.CRYPTO_HASH += in.CRYPTO_HASH
+	tic.AVX += in.AVX
+	tic.AVX512 += in.AVX512
+	tic.MASK += in.MASK
+	tic.AMX += in.AMX
+}
+
+func (tic *techInstCounter) classification(action string) def.TechInstManager {
+	if _, ok := def.X86X64HardwareFeatureInstSet[action]; !ok {
+		fmt.Println("missed action", action)
+	}
+	return def.X86X64HardwareFeatureInstSet[action]
+}
+
+func (tic *techInstCounter) record(action string) {
+	class := tic.classification(action)
+	tic.Total++
+	for _, v := range class {
+		switch v {
+		case def.VIRTUALIZATION:
+			tic.VIRTUALIZATION++
+		case def.GP:
+			tic.GP++
+		case def.GP_EXT:
+			tic.GP_EXT++
+		case def.GP_IN_OUT:
+			tic.GP_IN_OUT++
+		case def.FPU:
+			tic.FPU++
+		case def.MMX:
+			tic.MMX++
+		case def.STATE:
+			tic.STATE++
+		case def.SIMD:
+			tic.SIMD++
+		case def.SSE:
+			tic.SSE++
+		case def.SCALAR:
+			tic.SCALAR++
+		case def.CRYPTO_HASH:
+			tic.CRYPTO_HASH++
+		case def.AVX:
+			tic.AVX++
+		case def.AVX512:
+			tic.AVX512++
+		case def.MASK:
+			tic.MASK++
+		case def.AMX:
+			tic.AMX++
+		}
+	}
+}
+
+func (node *Node) AddCallee(funcName string) {
+	node.Callee[funcName] = struct{}{}
+}
+
+func (node *Node) Neighbors() map[string]struct{} {
+	return node.Callee
+}
+
+func (node *Node) Features() []int {
+	return append(node.Counter.get(), node.CalledTimes, node.CalledTimes)
+}
+
+func (node *Node) SegmentsPerInterval() []int {
+	return append(node.Counter.segmentsPerInterval(), 4, 4)
+}
+
+func (node *Node) Name() string {
+	return node.FuncName
+}
+
+func (node *Node) MetricsNumber() int {
+	return len(node.SegmentsPerInterval())
+}
+
+func (node *Node) DeepCopy() *Node {
 	return &Node{
-		FuncName:                    ff.FuncName,
-		TotalInstruction:            ff.TotalInstruction,
-		TransmissionInstruction:     ff.TransmissionInstruction,
-		IOInstruction:               ff.IOInstruction,
-		ArithmeticInstruction:       ff.ArithmeticInstruction,
-		LogicalInstruction:          ff.LogicalInstruction,
-		StringInstruction:           ff.StringInstruction,
-		ProgramTransferInstruction:  ff.ProgramTransferInstruction,
-		InterruptInstruction:        ff.InterruptInstruction,
-		PseudoInstruction:           ff.PseudoInstruction,
-		ProcessorControlInstruction: ff.ProcessorControlInstruction,
-		OtherInstruction:            ff.OtherInstruction,
-		Callee:                      ff.Callee,
-		CalledTimes:                 ff.CalledTimes,
-		flag:                        ff.flag,
+		FuncName:    node.FuncName,
+		Counter:     node.Counter.deepCopy(),
+		Callee:      node.Callee,
+		CalledTimes: node.CalledTimes,
+		flag:        node.flag,
+		OutDegree:   node.CalledTimes,
 	}
 }
 
-func (ff *Node) AddInfo(funcFeatures interface{}) {
-	if funcfeat, ok := funcFeatures.(*Node); ok {
-		ff.TotalInstruction += funcfeat.TotalInstruction
-		ff.TransmissionInstruction += funcfeat.TransmissionInstruction
-		ff.IOInstruction += funcfeat.IOInstruction
-		ff.ArithmeticInstruction += funcfeat.ArithmeticInstruction
-		ff.LogicalInstruction += funcfeat.LogicalInstruction
-		ff.StringInstruction += funcfeat.StringInstruction
-		ff.ProgramTransferInstruction += funcfeat.ProgramTransferInstruction
-		ff.InterruptInstruction += funcfeat.InterruptInstruction
-		ff.PseudoInstruction += funcfeat.PseudoInstruction
-		ff.ProcessorControlInstruction += funcfeat.ProcessorControlInstruction
-		ff.CalledTimes += funcfeat.CalledTimes
-	} else if funcfeat, ok := funcFeatures.(string); ok {
-		ff.FuncName = funcfeat
+func (node *Node) Add(in *Node) {
+	node.Counter.add(&in.Counter)
+	node.CalledTimes += in.CalledTimes
+	node.CalledTimes += in.CalledTimes
+}
+
+func (node *Node) Record(action string) {
+	node.Counter.record(action)
+}
+
+func (node *Node) SetName(name string) {
+	node.FuncName = name
+}
+
+func (profeature *ProgramFeatures) Features() []int {
+	return profeature.Counter.get()
+}
+func (profeature *ProgramFeatures) FeaturesWeight() []float64 {
+	return []float64{
+		16, //tic.Total,
+		8,  //tic.VIRTUALIZATION,
+		1,  //tic.GP,
+		1,  //tic.GP_EXT,
+		8,  //tic.GP_IN_OUT,
+		4,  //tic.FPU,
+		8,  //tic.MMX,
+		8,  //tic.STATE,
+		8,  //tic.SIMD,
+		8,  //tic.SSE,
+		8,  //tic.SCALAR,
+		8,  //tic.CRYPTO_HASH,
+		8,  //tic.AVX,
+		8,  //tic.AVX512,
+		8,  //tic.MASK,
+		8,  //tic.AMX,
 	}
 }
 
-func (ff *ProgramFeatures) Features() []int {
-	return []int{ff.TotalInstruction, ff.TotalTransmissionInstruction, ff.TotalIOInstruction, ff.TotalArithmeticInstruction, ff.TotalLogicalInstruction, ff.TotalStringInstruction, ff.TotalProgramTransferInstruction, ff.TotalInterruptInstruction, ff.TotalPseudoInstruction, ff.TotalProcessorControlInstruction}
+func (profeature *ProgramFeatures) Name() string {
+	return profeature.ProgrammerName
 }
 
-func (ff *ProgramFeatures) Nodes() map[string]*Node {
-	return ff.ControlFlowGraphRoots
+func (profeature *ProgramFeatures) Add(in *Node) {
+	profeature.Counter.add(&in.Counter)
 }
 
-func (ff *ProgramFeatures) Name() string {
-	return ff.ProgrammerName
+func (profeature *ProgramFeatures) SetName(name string) {
+	profeature.ProgrammerName = name
 }
 
-func (ff *ProgramFeatures) AddInfo(funcFeatures interface{}) {
-	if funcfeat, ok := funcFeatures.(*Node); ok {
-		ff.TotalInstruction += funcfeat.TotalInstruction
-		ff.TotalTransmissionInstruction += funcfeat.TransmissionInstruction
-		ff.TotalIOInstruction += funcfeat.IOInstruction
-		ff.TotalArithmeticInstruction += funcfeat.ArithmeticInstruction
-		ff.TotalLogicalInstruction += funcfeat.LogicalInstruction
-		ff.TotalStringInstruction += funcfeat.StringInstruction
-		ff.TotalProgramTransferInstruction += funcfeat.ProgramTransferInstruction
-		ff.TotalInterruptInstruction += funcfeat.InterruptInstruction
-		ff.TotalPseudoInstruction += funcfeat.PseudoInstruction
-		ff.TotalProcessorControlInstruction += funcfeat.ProcessorControlInstruction
-	} else if funcfeat, ok := funcFeatures.(string); ok {
-		ff.ProgrammerName = funcfeat
-	} else if funcfeat, ok := funcFeatures.(*ProgramFeatures); ok {
-		ff.TotalInstruction += funcfeat.TotalInstruction
-		ff.TotalTransmissionInstruction += funcfeat.TotalTransmissionInstruction
-		ff.TotalIOInstruction += funcfeat.TotalIOInstruction
-		ff.TotalArithmeticInstruction += funcfeat.TotalArithmeticInstruction
-		ff.TotalLogicalInstruction += funcfeat.TotalLogicalInstruction
-		ff.TotalStringInstruction += funcfeat.TotalStringInstruction
-		ff.TotalProgramTransferInstruction += funcfeat.TotalProgramTransferInstruction
-		ff.TotalInterruptInstruction += funcfeat.TotalInterruptInstruction
-		ff.TotalPseudoInstruction += funcfeat.TotalPseudoInstruction
-		ff.TotalProcessorControlInstruction += funcfeat.TotalProcessorControlInstruction
-	} else {
-		logger.Error("can't add to Programmer Feature,the type is unfit ")
-	}
-}
-
-func (ff *ProgramFeatures) DeepCopy() *ProgramFeatures {
-	return &ProgramFeatures{
-		ProgrammerName:                   ff.ProgrammerName,
-		TotalInstruction:                 ff.TotalInstruction,
-		TotalTransmissionInstruction:     ff.TotalTransmissionInstruction,
-		TotalIOInstruction:               ff.TotalIOInstruction,
-		TotalArithmeticInstruction:       ff.TotalArithmeticInstruction,
-		TotalLogicalInstruction:          ff.TotalLogicalInstruction,
-		TotalStringInstruction:           ff.TotalStringInstruction,
-		TotalProgramTransferInstruction:  ff.TotalProgramTransferInstruction,
-		TotalInterruptInstruction:        ff.TotalInterruptInstruction,
-		TotalPseudoInstruction:           ff.TotalPseudoInstruction,
-		TotalProcessorControlInstruction: ff.TotalProcessorControlInstruction,
-		ControlFlowGraphRoots:            ff.ControlFlowGraphRoots,
+func (profeature *ProgramFeatures) DeepCopy() ProgramFeatures {
+	return ProgramFeatures{
+		ProgrammerName: profeature.ProgrammerName,
+		Counter:        profeature.Counter.deepCopy(),
 	}
 }

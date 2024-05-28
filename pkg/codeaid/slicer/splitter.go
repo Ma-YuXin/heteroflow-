@@ -69,6 +69,7 @@ func Process(filepath string) *Calculator {
 		Vector:       sv,
 	}
 	err := WriteCalculator(filename, cal)
+
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -76,14 +77,6 @@ func Process(filepath string) *Calculator {
 }
 
 func ReadEntireAssembly(path string) (*cfw.ProgramFeatures, cfw.Graph) {
-	// start := time.Now()
-	defer func() {
-		// fmt.Println("used action ", tools.UsedAction)
-		if len(MissedAction) != 0 {
-			fmt.Println("missed action", MissedAction)
-		}
-		// fmt.Println("total time used", time.Since(start))
-	}()
 	f, err := os.Open(path)
 	if err != nil {
 		logger.Fatal(f.Name() + "file path is wrong!")
@@ -92,7 +85,8 @@ func ReadEntireAssembly(path string) (*cfw.ProgramFeatures, cfw.Graph) {
 	scan := bufio.NewScanner(f)
 	filenameWithExt := filepath.Base(path)
 	ff, gra := readAssemblyFunction(scan)
-	ff.AddInfo(filenameWithExt)
+	ff.SetName(filenameWithExt)
+
 	return ff, gra
 }
 
@@ -103,11 +97,13 @@ func readAssemblyFunction(scan *bufio.Scanner) (*cfw.ProgramFeatures, cfw.Graph)
 	for {
 		ff, isEnd := extract.readAsmFunc(scan)
 		gra.AddNode(ff)
-		filefeature.AddInfo(ff)
+		filefeature.Add(ff)
 		if isEnd {
 			break
 		}
 	}
+	gra.SetNodeOutDegree()
+
 	return filefeature, gra
 
 }
@@ -181,7 +177,7 @@ func RedirctedassembleToFile(path string) (string, string) {
 		panic(err)
 	}
 	defer outputFile.Close()
-	// 将命令的输出和错误重定向到文件
+	// 将命令的输出和错误重定向到文件/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X64/O0/libpfm4-4.9.0
 	cmd.Stdout = outputFile
 	cmd.Stderr = outputFile
 	// 执行命令
@@ -194,6 +190,7 @@ func RedirctedassembleToFile(path string) (string, string) {
 // 将Calculator写入文件，filename为文件名，t为要写入的Calculator
 func WriteCalculator(filename string, t Calculator) error {
 	path := def.BasePath + "json/" + filename
+	// fmt.Println(path)
 	util.CreateDirIfNotExist(path)
 	file, err := os.Create(path)
 	if err != nil {
@@ -202,7 +199,7 @@ func WriteCalculator(filename string, t Calculator) error {
 	defer file.Close()
 	encoder := json.NewEncoder(file)
 	enc := &configEncoded{
-		Feature:    *t.FileFeatures,
+		Feature:    t.FileFeatures.DeepCopy(),
 		Graph:      encodedGraph{Type: "", Data: nil},
 		Vector:     encodedStatisticalVectors{Type: "", Data: nil},
 		DynamicLib: t.DynamicLib,
@@ -211,43 +208,33 @@ func WriteCalculator(filename string, t Calculator) error {
 	switch t.Graph.(type) {
 	case *cfw.UndirectedGraph:
 		enc.Graph.Type = "UndirectedGraph"
-		enc.Graph.Data, err = json.Marshal(t.Graph)
-		if err != nil {
-			fmt.Println(err)
-		}
-		// fmt.Println("marsh to file undir", shape)
 	case *cfw.DirectedGraph:
 		enc.Graph.Type = "DirectedGraph"
-		enc.Graph.Data, err = json.Marshal(t.Graph)
-		if err != nil {
-			fmt.Println(err)
-		}
-		// fmt.Println("marsh to file dir", shape)
 	default:
 		fmt.Println("unknown type ,can't to marsh Graph")
 	}
 	switch t.Vector.(type) {
 	case cfw.MapStatisticalVector:
 		enc.Vector.Type = "MapStatisticalVector"
-		enc.Vector.Data, err = json.Marshal(t.Vector)
-		if err != nil {
-			fmt.Println(err)
-		}
-		// fmt.Println("marsh to file undir", shape)
 	case cfw.SliceStatisticalVector:
 		enc.Vector.Type = "SliceStatisticalVector"
-		enc.Vector.Data, err = json.Marshal(t.Vector)
-		if err != nil {
-			fmt.Println(err)
-		}
-		// fmt.Println("marsh to file dir", shape)
 	default:
 		fmt.Println("unknown type ,can't to marsh SliceStatisticalVector")
 	}
+	enc.Vector.Data, err = json.Marshal(t.Vector)
+	if err != nil {
+		fmt.Println(err)
+	}
+	enc.Graph.Data, err = json.Marshal(t.Graph)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// fmt.Printf("enc: %+v ", enc.Feature)
 	return encoder.Encode(enc)
 }
 
 func readJSONFile(filename string) (*Calculator, error) {
+	fmt.Println(filename)
 	data := &Calculator{}
 	file, err := os.Open(filename)
 	if err != nil {

@@ -936,20 +936,15 @@ package tmp
 // 	return res2, nil
 // }
 
-
-
-
-
-	// root := c.build.GraphGraphFromRoot("main@@Base-0x50")
-	// c.build.AllFunctionName()
-	// c.build.BFS(root)
-	// roots := c.Graph.BuildGraph()
-	// filefeature.ControlFlowGraphRoots = roots
-	// graph.FuncCalltimes(c.Graph)
-	// for _, node := range roots {
-	// 	graph.BFS(node.FuncFeatures)
-	// 	fmt.Println()
-	// 	fmt.Println(`***************************************************`)
-	// 	fmt.Println()
-	// }
-	
+// root := c.build.GraphGraphFromRoot("main@@Base-0x50")
+// c.build.AllFunctionName()
+// c.build.BFS(root)
+// roots := c.Graph.BuildGraph()
+// filefeature.ControlFlowGraphRoots = roots
+// graph.FuncCalltimes(c.Graph)
+// for _, node := range roots {
+// 	graph.BFS(node.FuncFeatures)
+// 	fmt.Println()
+// 	fmt.Println(`***************************************************`)
+// 	fmt.Println()
+// }

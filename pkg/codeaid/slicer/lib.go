@@ -43,7 +43,7 @@ func sharedLibs(filePath string) util.VertexSet[string, string] {
 	cmd.Stderr = &stderr
 	cmd.Stdout = &stdout
 	if err := cmd.Run(); err != nil {
-		fmt.Println("ldd", stderr.String())
+		// fmt.Println("ldd", stderr.String())
 		return util.VertexSet[string, string]{}
 	}
 	out := stdout.Bytes()
@@ -59,7 +59,7 @@ func sharedLibs(filePath string) util.VertexSet[string, string] {
 		// fmt.Println("|"+string(before)+"|", "|"+string(after)+"|", found)
 		if found {
 			path := bytes.Split(after, []byte(" "))[0]
-			fmt.Println("|"+string(after)+"|", "|"+string(path)+"|", found)
+			// fmt.Println("|"+string(after)+"|", "|"+string(path)+"|", found)
 			// fmt.Println(string(after))
 			res[string(before)] = ""
 			if string(path) != "not" {
