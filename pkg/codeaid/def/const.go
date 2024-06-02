@@ -8,9 +8,9 @@ const (
 	CudaFlags                       = "cudaFree|cudaMemcpy|cudaMalloc"
 	GraphKernalDefaultIteratorTimes = 2
 	// MetricsNumber                       = 18
-	FeatureDividBase                    = 3
-	FileWeight, CFWWeight               = 0.7, 0.3
-	JsonDatabase                        = "/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86"
+	FeatureDividBase = 3
+	// FileWeight, CFWWeight               = 0.7, 0.3
+	JsonDatabase                        = "/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X64"
 	PercentageDecline                   = 0.8
 	Delta                               = 1.0
 	Alpha                               = 1.0
@@ -19,7 +19,7 @@ const (
 	StatisticalVectorDisjointWeight     = 0.5
 	TotalInstWeight                     = 0.5
 	ProgramFeatureWeight                = 0.5
-	MaxGoroutines                       = 1
+	MaxGoroutines                       = 64
 	Debug                               = false
 )
 

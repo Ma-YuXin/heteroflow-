@@ -1,6 +1,7 @@
 package slicer
 
 import (
+	"fmt"
 	"heterflow/pkg/codeaid/def"
 	"reflect"
 	"testing"
@@ -19,6 +20,10 @@ func TestProcess(t *testing.T) {
 		{"case2",
 			"/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X64/O0/uboot-tools-2018.07/dumpimage",
 			"dumpimage",
+		},
+		{"case3",
+			"/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/Os/xapian-1.4.9/xapian-delve",
+			"xapian-delve",
 		},
 	}
 	// 迭代测试案例
@@ -55,7 +60,10 @@ func TestRedirctedassembleToFile(t *testing.T) {
 			_, filename := RedirctedassembleToFile(tc.input)
 			path := def.BasePath + "json/" + filename + ".json"
 			// 调用要测试的函数并传入输入值
-			cal := FetchCalculator(path)
+			cal, err := FetchCalculator(path)
+			if err != nil {
+				fmt.Println(err)
+			}
 			// fmt.Println(cal.DynamicLib)
 			// fmt.Println(cal.FileFeatures)
 			// fmt.Println(cal.Gpu)
@@ -89,7 +97,11 @@ func TestFetchCalculatorAndPrint(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// 调用要测试的函数并传入输入值
-			cal := FetchCalculator(tc.input)
+			cal, err := FetchCalculator(tc.input)
+			if err != nil {
+				fmt.Println(err)
+
+			}
 			// fmt.Println(cal.DynamicLib)
 			// fmt.Println(cal.FileFeatures)
 			// fmt.Println(cal.Gpu)
@@ -113,14 +125,28 @@ func TestFetchCalculator(t *testing.T) {
 		input    string // 输入值
 		expected string // 期望结果
 	}{
-		{"case1", "/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/acl-2.2.53/chacl", "chacl"},
+		{"case1",
+			"/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/acl-2.2.53/chacl",
+			"chacl",
+		},
+		{"case2",
+			"/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc",
+			"clambc",
+		},
+		{"case3",
+			"/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/Os/xapian-1.4.9/xapian-delve",
+			"xapian-delve",
+		},
 	}
-
 	// 迭代测试案例
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// 调用要测试的函数并传入输入值
-			output := FetchCalculator(tc.input).FileFeatures.Name()
+			cal, err := FetchCalculator(tc.input)
+			if err != nil {
+				fmt.Println(err)
+			}
+			output := cal.FileFeatures.Name()
 			// 判断输出是否符合预期
 			if !reflect.DeepEqual(output, tc.expected) {
 				t.Errorf("For input %s, expected result is %v, but got %v",

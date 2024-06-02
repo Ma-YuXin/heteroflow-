@@ -14,9 +14,13 @@ func NewCodeAidCommand() *cobra.Command {
 		Long:  ` `,
 		Short: ` `,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			analyzer.MostSimilarMatrix()
+			// analyzer.SimilarityByJson("/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X64/O0/acl-2.2.53/getfacl", "/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/Os/xapian-1.4.9/xapian-delve")
+			// analyzer.MostSimilarProgramerByJson("/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc")
+			// analyzer.MostSimilarProgramerByBinary("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc")
 			// analyzer.MostSimilarProgramerByBinary("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc")
 			// fmt.Println(analyzer.MostSimilarProgramer("/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc"))
-			analyzer.PreprocessAssemblyFiles("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86")
+			// analyzer.PreprocessAssemblyFiles("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86")
 			// slicer.Process("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/O0/acl-2.2.53/setfacl")
 			// pro := "/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc"
 			// path := "/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/acl-2.2.53/setfacl"

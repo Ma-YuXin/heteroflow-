@@ -73,6 +73,7 @@ func Union[K comparable, V any](v VertexSet[K, V], another VertexSet[K, V]) Vert
 	}
 	return result
 }
+
 func UnionKey[K comparable, V1, V2 any](v VertexSet[K, V1], another VertexSet[K, V2]) VertexSet[K, V1] {
 	result := make(VertexSet[K, V1], len(v))
 	for val := range v {

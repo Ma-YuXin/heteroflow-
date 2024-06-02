@@ -1,0 +1,1 @@
+find /mnt/data/nfs/myx/heterflow/hack/setup -type f -name "*.sh" -exec bash {} \;

@@ -145,15 +145,15 @@ func isGPUUsed(gra cfw.Graph, sharedlib util.VertexSet[string, string]) bool {
 }
 
 // 从json文件中读取Calculator,file为文件路径
-func FetchCalculator(file string) *Calculator {
+func FetchCalculator(file string) (*Calculator, error) {
 	cal, err := readJSONFile(file)
 	if err != nil {
-		fmt.Println(err)
+		return nil, fmt.Errorf("%s: %w", file, err)
 	}
 	if def.Debug {
 		fmt.Println("successfully get Calculator")
 	}
-	return cal
+	return cal, nil
 }
 
 // 将指定路径的二进制文件反汇编并将汇编代码写入到指定文件夹中
@@ -205,36 +205,40 @@ func WriteCalculator(filename string, t Calculator) error {
 		DynamicLib: t.DynamicLib,
 		GPU:        t.Gpu,
 	}
+
 	switch t.Graph.(type) {
 	case *cfw.UndirectedGraph:
 		enc.Graph.Type = "UndirectedGraph"
 	case *cfw.DirectedGraph:
 		enc.Graph.Type = "DirectedGraph"
 	default:
-		fmt.Println("unknown type ,can't to marsh Graph")
+		return fmt.Errorf("unknown graph type, can't to unmarsh: %s", enc.Graph.Type)
 	}
+
 	switch t.Vector.(type) {
 	case cfw.MapStatisticalVector:
 		enc.Vector.Type = "MapStatisticalVector"
 	case cfw.SliceStatisticalVector:
 		enc.Vector.Type = "SliceStatisticalVector"
 	default:
-		fmt.Println("unknown type ,can't to marsh SliceStatisticalVector")
+		return fmt.Errorf("unknown vector type, can't to unmarsh: %s", enc.Vector.Type)
 	}
+
 	enc.Vector.Data, err = json.Marshal(t.Vector)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
+
 	enc.Graph.Data, err = json.Marshal(t.Graph)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 	// fmt.Printf("enc: %+v ", enc.Feature)
 	return encoder.Encode(enc)
 }
 
 func readJSONFile(filename string) (*Calculator, error) {
-	fmt.Println(filename)
+	// fmt.Println(filename)
 	data := &Calculator{}
 	file, err := os.Open(filename)
 	if err != nil {
@@ -263,7 +267,7 @@ func readJSONFile(filename string) (*Calculator, error) {
 		}
 		data.Graph = &r
 	default:
-		fmt.Println("unknown type ,can't to unmarsh", enc.Graph.Type)
+		err = fmt.Errorf("unknown graph type, can't to unmarsh: %s", enc.Graph.Type)
 	}
 	switch enc.Vector.Type {
 	case "MapStatisticalVector":
@@ -279,7 +283,7 @@ func readJSONFile(filename string) (*Calculator, error) {
 		}
 		data.Vector = &r
 	default:
-		fmt.Println("unknown type ,can't to unmarsh", enc.Vector.Type)
+		err = fmt.Errorf("unknown vector type, can't to unmarsh: %s", enc.Vector.Type)
 	}
 	return data, err
 }
