@@ -178,22 +178,22 @@ func (tic *techInstCounter) get() []int {
 
 func (tic *techInstCounter) segmentsPerInterval() []int {
 	return []int{
-		4, // Total:
-		4, // VIRTUALIZATION:
-		4, // GP:
-		4, // GP_EXT:
-		4, // GP_IN_OUT:
-		4, // FPU:
-		4, // MMX:
-		4, // STATE:
-		4, // SIMD:
-		4, // SSE:
-		4, // SCALAR:
-		4, // CRYPTO_HASH:
-		4, // AVX:
-		4, // AVX512:
-		4, // MASK:
-		4, // AMX:
+		6, // Total:
+		6, // VIRTUALIZATION:
+		6, // GP:
+		6, // GP_EXT:
+		6, // GP_IN_OUT:
+		6, // FPU:
+		6, // MMX:
+		6, // STATE:
+		6, // SIMD:
+		6, // SSE:
+		6, // SCALAR:
+		6, // CRYPTO_HASH:
+		6, // AVX:
+		6, // AVX512:
+		6, // MASK:
+		6, // AMX:
 	}
 }
 

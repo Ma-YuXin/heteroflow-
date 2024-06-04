@@ -21,6 +21,7 @@ const (
 	ProgramFeatureWeight                = 0.5
 	MaxGoroutines                       = 64
 	Debug                               = false
+	LargestElementsToFind               = 10
 )
 
 var (

@@ -103,9 +103,7 @@ func readAssemblyFunction(scan *bufio.Scanner) (*cfw.ProgramFeatures, cfw.Graph)
 		}
 	}
 	gra.SetNodeOutDegree()
-
 	return filefeature, gra
-
 }
 
 func allLibsAndGpu(filepath string, gra cfw.Graph) (util.VertexSet[string, struct{}], bool) {

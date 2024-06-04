@@ -7,7 +7,6 @@ import (
 	"heterflow/pkg/codeaid/def"
 	"heterflow/pkg/codeaid/slicer"
 	"heterflow/pkg/codeaid/util"
-	"heterflow/pkg/logger"
 	"math"
 	"os"
 	"path/filepath"
@@ -48,29 +47,13 @@ func (h *FloatHeap) Pop() interface{} {
 	return x
 }
 
-func maxSim(maxchan chan value) []value {
-	nowMax := value{}
-	for v := range maxchan {
-		if v.sim > nowMax.sim {
-			nowMax = v
-		}
-		if v.sim > 0.9 {
-			str := fmt.Sprintf("%v", v)
-			logger.Info(str)
-		}
-	}
-	return []value{
-		nowMax,
-	}
-}
-
 func maxSimN(maxchan chan value) []value {
-	n := 10 // Number of largest elements to find10
+	// n := 10 // Number of largest elements to find10
 	floatHeap := &FloatHeap{}
 	heap.Init(floatHeap)
 
 	for value := range maxchan {
-		if floatHeap.Len() < n {
+		if floatHeap.Len() < def.LargestElementsToFind {
 			heap.Push(floatHeap, value)
 		} else if value.sim > (*floatHeap)[0].sim {
 			heap.Pop(floatHeap)
@@ -228,7 +211,7 @@ func MostSimilarProgramerByBinary(pro string) []value {
 			panic(err)
 		}
 	}()
-	return maxSim(maxchan)
+	return maxSimN(maxchan)
 }
 
 func programmerSimilarity(calculator1 *slicer.Calculator, calculator2 *slicer.Calculator) float64 {
@@ -324,3 +307,19 @@ func PreprocessAssemblyFiles(root string) {
 		panic(err)
 	}
 }
+
+// func maxSim(maxchan chan value) []value {
+// 	nowMax := value{}
+// 	for v := range maxchan {
+// 		if v.sim > nowMax.sim {
+// 			nowMax = v
+// 		}
+// 		if v.sim > 0.9 {
+// 			str := fmt.Sprintf("%v", v)
+// 			logger.Info(str)
+// 		}
+// 	}
+// 	return []value{
+// 		nowMax,
+// 	}
+// }
