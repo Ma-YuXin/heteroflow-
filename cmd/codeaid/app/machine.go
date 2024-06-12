@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"heterflow/pkg/codeaid/analyzer"
+	"heterflow/pkg/codeaid/def"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -14,7 +15,26 @@ func NewCodeAidCommand() *cobra.Command {
 		Long:  ` `,
 		Short: ` `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			analyzer.MostSimilarMatrix()
+			nums := []int{4, 5, 6}
+			for i := 0; i < len(def.TechInstCounterHierarchies); i++ {
+				for j := 0; j < len(nums); j++ {
+					def.TechInstCounterHierarchies[i] = nums[j]
+					name := fmt.Sprintf("%v", def.TechInstCounterHierarchies)
+					filename := "/mnt/data/nfs/myx/heterflow/logs/result/buildroot" + name
+					file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+					if err != nil {
+						return err
+					}
+					// 改变标准输出
+					os.Stdout = file
+					// 改变标准错误输出
+					os.Stderr = file
+					analyzer.MostSimilarMatrix()
+					file.Close()
+				}
+			}
+			// 
+			// analyzer.PreprocessAssemblyFiles("/mnt/data/nfs/myx/tmp/datasets/gnu_debug")
 			// analyzer.SimilarityByJson("/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X64/O0/acl-2.2.53/getfacl", "/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/Os/xapian-1.4.9/xapian-delve")
 			// analyzer.MostSimilarProgramerByJson("/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc")
 			// analyzer.MostSimilarProgramerByBinary("/mnt/data/nfs/myx/tmp/datasets/Asteria-Pro/buildroot-elf-5arch/X86/O0/clamav-0.101.2/clambc")

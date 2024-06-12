@@ -25,7 +25,37 @@ const (
 )
 
 var (
-	// Hierarchies = []int{12, 6, 2, 6, 6, 6, 8, 4, 2, 6, 4, 6}
+	BehaviorInstCounterHierarchies = []int{
+		4, // Total:
+		4, // Transmission:
+		2, // IO:
+		4, // Arithmetic:
+		4, // Logical:
+		4, // String:
+		4, // ProgramTransfer:
+		2, // Interrupt:
+		2, // Pseudo:
+		4, // ProcessorControl:
+	}
+	TechInstCounterHierarchies = []int{
+		6, // Total:
+		6, // VIRTUALIZATION:
+		6, // GP:
+		6, // GP_EXT:
+		6, // GP_IN_OUT:
+		6, // FPU:
+		6, // MMX:
+		6, // STATE:
+		6, // SIMD:
+		6, // SSE:
+		6, // SCALAR:
+		6, // CRYPTO_HASH:
+		6, // AVX:
+		6, // AVX512:
+		6, // MASK:
+		6, // AMX:
+	}
+	//  = []int{12, 6, 2, 6, 6, 6, 8, 4, 2, 6, 4, 6}
 	Weight = []float64{1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0}
 )
 
