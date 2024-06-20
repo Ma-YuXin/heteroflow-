@@ -37,6 +37,7 @@ func CPUInfo() []cpu.InfoStat {
 	}
 
 	fmt.Println("CPU Info:")
+	fmt.Printf("%+v\n", cpuInfo[0])
 	for _, info := range cpuInfo {
 		fmt.Printf("Model: %s, Cores: %d, MHz: %f\n", info.ModelName, info.Cores, info.Mhz)
 	}
@@ -69,5 +70,6 @@ func HostInfo() *host.InfoStat {
 	fmt.Println("PlatformFamily:", hostInfo.PlatformFamily)
 	fmt.Println("PlatformVersion:", hostInfo.PlatformVersion)
 	fmt.Println("KernelVersion:", hostInfo.KernelVersion)
+	
 	return hostInfo
 }

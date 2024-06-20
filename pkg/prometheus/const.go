@@ -1,7 +1,7 @@
 package prometheus
 
 const (
-	PROM_URL = "http://127.0.0.1:9090"
+	PROM_URL = "http://127.0.0.1:31723/prometheus/"
 )
 
 var(
@@ -14,6 +14,8 @@ var(
 	// instance_device:node_disk_io_time_weighted_seconds:rate5m
 	// //节点cpu使用率
 	// instance:node_cpu:ratio{instance="kind-control-plane"}
+	// //用于衡量系统负载与CPU核心数的比率。这个指标的计算方式是将系统在过去1分钟的平均负载（load1）除以CPU核心数。这里的“负载”指的是在特定时间窗口内，等待CPU时间的进程数，包括正在运行的进程和等待运行的进程。
+	// instance:node_load1_per_cpu:ratio
 	// //节点内存利用率
 	// instance:node_memory_utilisation:ratio
 	// //节点剩余内存，一个更为积极的值，它考虑了内核使用的缓存和缓冲区内存，以及一些可能回收的内存，如临时文件等。
@@ -22,13 +24,13 @@ var(
 	// node_memory_MemFree_bytes{instance="kind-control-plane"}
 
 	// 容器层面:
-	// 特定容器的块设备 I/O 操作的总量
+	// //特定容器的块设备 I/O 操作的总量
 	// container_blkio_device_usage_total{ instance="172.18.0.2:10250", job="kubelet", namespace="kube-system", node="kind-control-plane", operation="Read", pod="kube-scheduler-kind-control-plane", service="kubelet"}
-	// 特定容器的内存使用总量
+	// //特定容器的内存使用总量
 	// container_memory_usage_bytes{pod="kube-scheduler-kind-control-plane"}
-	// 使用 container_cpu_usage_seconds_total 指标来获取容器的 CPU 使用量
+	// //使用 container_cpu_usage_seconds_total 指标来获取容器的 CPU 使用量
 	// rate(container_cpu_usage_seconds_total{container_name="your_container_name", pod_name="your_pod_name"}[5m])
-	// 容器cpu使用百分比
+	// //容器cpu使用百分比
 	// sum(rate(container_cpu_usage_seconds_total{container="kube-scheduler",namespace="kube-system",pod="kube-scheduler-kind-control-plane"}[5m]))  
 	// sum(container_memory_usage_bytes{container="kube-scheduler",namespace="kube-system",pod="kube-scheduler-kind-control-plane"})/	sum(node_memory_MemTotal_bytes{instance="kind-control-plane"})
 )

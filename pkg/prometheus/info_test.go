@@ -9,7 +9,6 @@ func TestNodeInfo(t *testing.T) {
 	testCases := []struct {
 		name string
 		node string // 测试描述
-
 	}{
 		{
 			"master-node",
@@ -20,10 +19,16 @@ func TestNodeInfo(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			res := NodeInfo(tc.node)
-			fmt.Printf("%+v", res)
+			// fmt.Printf("%+v", res)
+			fmt.Println("Disk", *res.Disk)
+			fmt.Println()
+			fmt.Println("Mem", *res.Memory)
+			fmt.Println()
+			fmt.Println("Net", *res.NetWork)
+			fmt.Println()
+			fmt.Println("Cpu", *res.Cpu)
 		})
 	}
-
 }
 
 func TestContainerInfo(t *testing.T) {
@@ -39,21 +44,25 @@ func TestContainerInfo(t *testing.T) {
 			"kube-system",
 			"kind-control-plane",
 		},
+		{
+			"nginx-info",
+			"nginx-deployment-9d6cbcc65-f5856",
+			"default",
+			"kind-control-plane",
+		},
 	}
 	// 迭代测试案例
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			res := ContainerInfo(tc.pod, tc.namespace, tc.node)
 			// fmt.Printf("%+v", res)
-			fmt.Println(*res.Disk)
+			fmt.Println("Disk", *res.Disk)
 			fmt.Println()
-			fmt.Println(*res.Memory)
+			fmt.Println("Mem", *res.Memory)
 			fmt.Println()
-			fmt.Println(*res.NetWork)
+			fmt.Println("Net", *res.NetWork)
 			fmt.Println()
-			fmt.Println(*res.Cpu)
-
+			fmt.Println("Cpu", *res.Cpu)
 		})
 	}
-
 }

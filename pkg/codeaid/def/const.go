@@ -3,14 +3,14 @@ package def
 const (
 	CommendOfSharedLibs             = "ldd "
 	CommendOfDisassembly            = "objdump -M intel -d "
-	BinaryFilePathPrefix            = "/mnt/data/nfs/myx/tmp/datasets/"
-	BasePath                        = "/mnt/data/nfs/myx/tmp/"
+	BinaryFilePathPrefix            = "/mnt/data/myx/tmp/datasets/"
+	BasePath                        = "/mnt/data/myx/tmp/"
 	CudaFlags                       = "cudaFree|cudaMemcpy|cudaMalloc"
 	GraphKernalDefaultIteratorTimes = 2
 	// MetricsNumber                       = 18
 	FeatureDividBase = 3
 	// FileWeight, CFWWeight               = 0.7, 0.3
-	JsonDatabase                        = "/mnt/data/nfs/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X64"
+	JsonDatabase                        = "/mnt/data/myx/tmp/json/Asteria-Pro/buildroot-elf-5arch/X64"
 	PercentageDecline                   = 0.8
 	Delta                               = 1.0
 	Alpha                               = 1.0
@@ -19,7 +19,7 @@ const (
 	StatisticalVectorDisjointWeight     = 0.5
 	TotalInstWeight                     = 0.5
 	ProgramFeatureWeight                = 0.5
-	MaxGoroutines                       = 64
+	MaxGoroutines                       = 70
 	Debug                               = false
 	LargestElementsToFind               = 10
 )
@@ -38,22 +38,22 @@ var (
 		4, // ProcessorControl:
 	}
 	TechInstCounterHierarchies = []int{
-		6, // Total:
-		6, // VIRTUALIZATION:
-		6, // GP:
-		6, // GP_EXT:
-		6, // GP_IN_OUT:
-		6, // FPU:
-		6, // MMX:
-		6, // STATE:
-		6, // SIMD:
-		6, // SSE:
-		6, // SCALAR:
-		6, // CRYPTO_HASH:
-		6, // AVX:
-		6, // AVX512:
-		6, // MASK:
-		6, // AMX:
+		5, // Total:
+		5, // VIRTUALIZATION:
+		5, // GP:
+		5, // GP_EXT:
+		5, // GP_IN_OUT:
+		5, // FPU:
+		5, // MMX:
+		5, // STATE:
+		5, // SIMD:
+		5, // SSE:
+		5, // SCALAR:
+		5, // CRYPTO_HASH:
+		5, // AVX:
+		5, // AVX512:
+		5, // MASK:
+		5, // AMX:
 	}
 	//  = []int{12, 6, 2, 6, 6, 6, 8, 4, 2, 6, 4, 6}
 	Weight = []float64{1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0}

@@ -86,7 +86,6 @@ func ReadEntireAssembly(path string) (*cfw.ProgramFeatures, cfw.Graph) {
 	filenameWithExt := filepath.Base(path)
 	ff, gra := readAssemblyFunction(scan)
 	ff.SetName(filenameWithExt)
-
 	return ff, gra
 }
 

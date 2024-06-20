@@ -17,6 +17,11 @@ kubectl wait \
 kubectl apply -f manifests/
 
 # 向外暴露端口
-kubectl port-forward -n monitoring  svc/grafana 3000:3000 &
-kubectl port-forward -n monitoring  svc/prometheus-k8s 9090:9090 &
+kubectl port-forward -n monitoring  svc/grafana 3000:3000 
+kubectl port-forward -n monitoring  svc/prometheus-k8s 9090:9090 
+
+# 安装ingress controller
+helm upgrade --install ingress-nginx ingress-nginx \
+  --repo https://kubernetes.github.io/ingress-nginx \
+  --namespace ingress-nginx --create-namespace
 
